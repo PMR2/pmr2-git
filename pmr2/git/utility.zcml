@@ -1,0 +1,19 @@
+<configure 
+    xmlns="http://namespaces.zope.org/zope"
+    i18n_domain="zope">
+  
+  <utility
+      name="git"
+      factory="pmr2.git.utility.GitStorageUtility"
+      provides="pmr2.app.workspace.interfaces.IStorageUtility"
+      />
+  
+  <!--
+  <utility
+      name="git"
+      component="pmr2.git.protocol.git"
+      provides="pmr2.app.workspace.pas.interfaces.IStorageProtocol"
+      />
+  -->
+
+</configure>

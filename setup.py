@@ -25,6 +25,7 @@ setup(name='pmr2.git',
       install_requires=[
           'setuptools',
           # -*- Extra requirements: -*-
+          'pygit2',
       ],
       entry_points="""
       # -*- Entry points: -*-
