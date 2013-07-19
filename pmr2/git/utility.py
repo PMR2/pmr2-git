@@ -1,6 +1,8 @@
 import re
 from os.path import basename
 from cStringIO import StringIO
+import mimetypes
+
 import zope.component
 
 from pygit2 import Signature
@@ -10,7 +12,7 @@ from pygit2 import Blob
 from pygit2 import Tag
 from pygit2 import Commit
 from pygit2 import discover_repository, init_repository
-from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_OBJ_BLOB, GIT_OBJ_TAG
+from pygit2 import GIT_SORT_TIME
 
 from pmr2.app.settings.interfaces import IPMR2GlobalSettings
 from pmr2.app.workspace.exceptions import *
@@ -82,6 +84,10 @@ class GitStorage(BaseStorage):
         return GitStorage.__datefmt_filter[self.datefmt]
 
     @property
+    def _commit(self):
+        return self.__commit
+
+    @property
     def rev(self):
         if self.__commit:
             return self.__commit.hex
@@ -103,7 +109,7 @@ class GitStorage(BaseStorage):
         raise NotImplementedError
 
     def basename(self, name):
-        raise NotImplementedError
+        return name.split('/')[-1]
 
     def checkout(self, rev=None):
         # All the bad practices I did when building pmr2.mercurial will
@@ -117,23 +123,51 @@ class GitStorage(BaseStorage):
     # Unit tests would be useful here, even if this class will only
     # produce output for the browser classes.
 
-    def _getBlob(self, path):
-        fragments = list(reversed(path.split('/')))
-        node = self.repo.revparse_single(self.rev).tree
-        while fragments:
-            node = self.repo.get(node[fragments.pop()].oid)
-        if isinstance(node, Blob):
-            return node.data
-        raise KeyError
-
-    def file(self, path):
+    def _get_obj(self, path, cls=None):
         try:
-            return self._getBlob(path)
+            fragments = list(reversed(path.split('/')))
+            node = self.repo.revparse_single(self.rev).tree
+            while fragments:
+                node = self.repo.get(node[fragments.pop()].oid)
+            if cls is None or isinstance(node, cls):
+                return node
         except KeyError:
+              # can't find what is needed in repo, raised by pygit2
             raise PathNotFoundError('path not found')
 
-    def fileinfo(self, path):
-        raise NotImplementedError
+        # not what we were looking for.
+        if cls == Tree:
+            raise PathNotDirError('path not dir')
+        # default
+        # if cls == Blob:
+        raise PathNotFoundError('path not found')
+
+    def file(self, path):
+        return self._get_obj(path, Blob).data
+
+    def fileinfo(self, path, blob=None):
+        if blob is None:
+            blob = self._get_obj(path, Blob)
+        return {
+            'author': '%s <%s>' % (
+                self._commit.committer.name,
+                self._commit.committer.email,
+            ),
+            'permissions': '',
+            'desc': self._commit.message,
+            'node': self._commit.hex,
+            'date': self._commit.committer.time,  # raw unix
+            'size': blob.size,
+            'basename': path.split('/')[-1],
+            'file': path,
+            'mimetype': lambda: mimetypes.guess_type(blob.data)[0]
+                or 'application/octet-stream',
+            'contents': blob.data,
+            'baseview': 'file',
+            'fullpath': None,
+            'contenttype': None,
+            'external': None,
+        }
 
     def files(self):
         def _files(tree, current_path=None):
@@ -155,10 +189,112 @@ class GitStorage(BaseStorage):
         return results
 
     def listdir(self, path):
-        raise NotImplementedError
+        def strippath(_path):
+            frags = path.split('/')
+            while frags:
+                if frags[:-1] != ['']:
+                    break
+                frags.pop()
+            return '/'.join(frags)
+
+        path = strippath(path)
+
+        if path:
+            tree = self._get_obj(path, Tree)
+        else:
+            tree = self._commit.tree
+
+        def _listdir():
+            if path:
+                yield self.format(**{
+                    'permissions': 'drwxr-xr-x',
+                    'contenttype': None,
+                    'node': self.rev,
+                    'date': '',
+                    'size': '',
+                    'path': '%s/..' % path,
+                    'desc': '',
+                    'contents': '',  # XXX
+                    # 'emptydirs': '/'.join(emptydirs),
+                })
+
+            # TODO submodule handling
+            # this involves linking the git submodule definitions with
+            # the commit objects found here.
+
+            # return trees first:
+            for entry in tree:
+                node = self.repo.get(entry.oid)
+                if not isinstance(node, Tree):
+                    continue
+
+                fullpath = path and '%s/%s' % (path, entry.name) or entry.name
+
+                yield self.format(**{
+                    'permissions': 'drwxr-xr-x',
+                    'contenttype': 'folder',
+                    'node': self.rev,
+                    'date': '',
+                    'size': '',
+                    'path': fullpath,
+                    'desc': '',
+                    'contents': '',  # XXX
+                })
+
+            # then return files
+            for entry in tree:
+                node = self.repo.get(entry.oid)
+                if not isinstance(node, Blob):
+                    continue
+
+                fullpath = path and '%s/%s' % (path, entry.name) or entry.name
+
+                yield self.format(**{
+                    'permissions': '-rw-r--r--',
+                    'contenttype': 'file',
+                    'node': self.rev,
+                    'date': self._commit.committer.time,
+                    'size': str(node.size),
+                    'path': fullpath,
+                    'desc': self._commit.message,
+                    'contents': lambda: node.read_raw(),
+                })
+
+        return _listdir()
 
     def pathinfo(self, path):
-        raise NotImplementedError
+        obj = self._get_obj(path)
+        if isinstance(obj, Blob):
+            return self.fileinfo(path, obj)
+        return self.format(**{
+            'permissions': 'drwxr-xr-x',
+            'node': self.rev,
+            'date': '',
+            'size': '',
+            'path': path,
+            'contents': None,  # in hg it's a method for listing dir
+        })
 
     def log(self, start, count, branch=None, shortlog=False):
-        raise NotImplementedError
+        """
+        start and branch are literally the same thing.
+        """
+
+        try:
+            rev = self.repo.revparse_single(start).hex
+        except KeyError:
+            raise RevisionNotFoundError('revision %s not found' % start)
+
+        def _log():
+            for pos, commit in enumerate(self.repo.walk(rev, GIT_SORT_TIME)):
+                if pos == count:
+                    raise StopIteration
+                yield {
+                    'author': commit.committer.name,
+                    'date': commit.committer.time,
+                    'node': commit.hex,
+                    'rev': commit.hex,
+                    'desc': commit.message
+                }
+
+        return _log()
