@@ -5,8 +5,11 @@ import zope.component
 
 from pygit2 import Signature
 from pygit2 import Repository
+from pygit2 import Tree
+from pygit2 import Blob
+from pygit2 import Tag
+from pygit2 import Commit
 from pygit2 import discover_repository, init_repository
-from pygit2 import GIT_FILEMODE_BLOB, GIT_FILEMODE_TREE
 from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_OBJ_BLOB, GIT_OBJ_TAG
 
 from pmr2.app.settings.interfaces import IPMR2GlobalSettings
@@ -119,7 +122,7 @@ class GitStorage(BaseStorage):
         node = self.repo.revparse_single(self.rev).tree
         while fragments:
             node = self.repo.get(node[fragments.pop()].oid)
-        if node.type == GIT_OBJ_BLOB:
+        if isinstance(node, Blob):
             return node.data
         raise KeyError
 
@@ -141,9 +144,9 @@ class GitStorage(BaseStorage):
                 else:
                     name = node.name
 
-                if self.repo.get(node.oid).type == GIT_OBJ_BLOB:
+                if isinstance(self.repo.get(node.oid), Blob):
                     results.append(name)
-                elif self.repo.get(node.oid).type == GIT_OBJ_TREE:
+                elif isinstance(self.repo.get(node.oid), Tree):
                     results.extend(_files(self.repo.get(node.oid, name), name))
             return results
 
