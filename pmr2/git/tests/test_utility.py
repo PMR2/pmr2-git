@@ -161,6 +161,10 @@ class TestCase(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.testdir)
 
+    def assertEqualAnswerTable(self, answer_table, results):
+        for k, v in answer_table.iteritems():
+            self.assertEqual(v, [result[k] for result in results])
+
 
 class StorageTestCase(TestCase):
 
@@ -255,193 +259,64 @@ class StorageTestCase(TestCase):
         storage = GitStorage(self.workspace)
         storage.checkout(self.revs[3])
         result = list(storage.listdir(''))
-        answer = [
-        {
-            'author': '',
-            'permissions': 'drwxr-xr-x',
-            'desc': '',
-            'node': self.revs[3],
-            'date': result[0]['date'],
-            'size': '',
-            'basename': 'nested',
-            'file': 'nested',
-            'mimetype': result[0]['mimetype'],
-            'contents': result[0]['contents'],
-            'baseview': 'file',
-            'fullpath': None,
-            'contenttype': 'folder',
-            'external': None,
-        },
-        {
-            'author': '',
-            'permissions': '-rw-r--r--',
-            'desc': 'added4',
-            'node': self.revs[3],
-            'date': result[1]['date'],
-            'size': str(len(self.files[1])),
-            'basename': 'file1',
-            'file': 'file1',
-            'mimetype': result[1]['mimetype'],
-            'contents': result[1]['contents'],
-            'baseview': 'file',
-            'fullpath': None,
-            'contenttype': 'file',
-            'external': None,
-        },
-        {
-            'author': '',
-            'permissions': '-rw-r--r--',
-            'desc': 'added4',
-            'node': self.revs[3],
-            'date': result[2]['date'],
-            'size': str(len(self.files[1])),
-            'basename': 'file2',
-            'file': 'file2',
-            'mimetype': result[2]['mimetype'],
-            'contents': result[2]['contents'],
-            'baseview': 'file',
-            'fullpath': None,
-            'contenttype': 'file',
-            'external': None,
-        },
-        {
-            'author': '',
-            'permissions': '-rw-r--r--',
-            'desc': 'added4',
-            'node': self.revs[3],
-            'date': result[3]['date'],
-            'size': str(len(self.files[0])),
-            'basename': 'file3',
-            'file': 'file3',
-            'mimetype': result[3]['mimetype'],
-            'contents': result[3]['contents'],
-            'baseview': 'file',
-            'fullpath': None,
-            'contenttype': 'file',
-            'external': None,
-        },
-        ]
-        self.assertEqual(answer, result)
+        answer_table = {
+            'basename': ['nested', 'file1', 'file2', 'file3'],
+            'contenttype': ['folder', 'file', 'file', 'file'],
+            'file': ['nested', 'file1', 'file2', 'file3'],
+            'node': [self.revs[3], self.revs[3], self.revs[3], self.revs[3]],
+            'permissions': ['drwxr-xr-x', '-rw-r--r--', '-rw-r--r--',
+                    '-rw-r--r--'],
+            'size': ['', str(len(self.files[1])), str(len(self.files[1])),
+                    str(len(self.files[0])),],
+        }
+        self.assertEqualAnswerTable(answer_table, result)
+
+        # the pathinfo should return the same results.
+        pathinfo = storage.pathinfo('')
+        result = list(pathinfo['contents']())
+        self.assertEqualAnswerTable(answer_table, result)
 
     def test_501_listdir_root(self):
         storage = GitStorage(self.workspace)
         storage.checkout(self.revs[3])
+        answer_table = {
+            'basename': ['..', 'deep'],
+            'contenttype': [None, 'folder'],
+            'file': ['nested/..', 'nested/deep'],
+            'node': [self.revs[3], self.revs[3],],
+            'permissions': ['drwxr-xr-x', 'drwxr-xr-x'],
+            'size': ['', ''],
+        }
         result = list(storage.listdir('nested'))
-        answer = [
-        {
-            'author': '',
-            'permissions': 'drwxr-xr-x',
-            'desc': '',
-            'node': self.revs[3],
-            'date': result[0]['date'],
-            'size': '',
-            'basename': '..',
-            'file': 'nested/..',
-            'mimetype': result[0]['mimetype'],
-            'contents': result[0]['contents'],
-            'baseview': 'file',
-            'fullpath': None,
-            'contenttype': None,
-            'external': None,
-        },
-        {
-            'author': '',
-            'permissions': 'drwxr-xr-x',
-            'desc': '',
-            'node': self.revs[3],
-            'date': result[1]['date'],
-            'size': '',
-            'basename': 'deep',
-            'file': 'nested/deep',
-            'mimetype': result[1]['mimetype'],
-            'contents': result[1]['contents'],
-            'baseview': 'file',
-            'fullpath': None,
-            'contenttype': 'folder',
-            'external': None,
-        },
-        ]
-        self.assertEqual(answer, result)
+        self.assertEqualAnswerTable(answer_table, result)
 
     def test_502_listdir_nested_deep(self):
         storage = GitStorage(self.workspace)
         storage.checkout(self.revs[3])
+        answer_table = {
+            'basename': ['..', 'file'],
+            'contenttype': [None, 'file'],
+            'file': ['nested/deep/dir/..', 'nested/deep/dir/file'],
+            'node': [self.revs[3], self.revs[3],],
+            'permissions': ['drwxr-xr-x', '-rw-r--r--'],
+            'size': ['', str(len(self.nested_file))],
+        }
         result = list(storage.listdir('nested/deep/dir'))
-        answer = [
-        {
-            'author': '',
-            'permissions': 'drwxr-xr-x',
-            'desc': '',
-            'node': self.revs[3],
-            'date': result[0]['date'],
-            'size': '',
-            'basename': '..',
-            'file': 'nested/deep/dir/..',
-            'mimetype': result[0]['mimetype'],
-            'contents': result[0]['contents'],
-            'baseview': 'file',
-            'fullpath': None,
-            'contenttype': None,
-            'external': None,
-        },
-        {
-            'author': '',
-            'permissions': '-rw-r--r--',
-            'desc': 'added4',
-            'node': self.revs[3],
-            'date': result[1]['date'],
-            'size': str(len(self.nested_file)),
-            'basename': 'file',
-            'file': 'nested/deep/dir/file',
-            'mimetype': result[1]['mimetype'],
-            'contents': result[1]['contents'],
-            'baseview': 'file',
-            'fullpath': None,
-            'contenttype': 'file',
-            'external': None,
-        },
-        ]
-        self.assertEqual(answer, result)
+        self.assertEqualAnswerTable(answer_table, result)
 
     def test_503_listdir_old_rev(self):
         storage = GitStorage(self.workspace)
         storage.checkout(self.revs[1])
+        answer_table = {
+            'basename': ['file1', 'file2'],
+            'contenttype': ['file', 'file'],
+            'file': ['file1', 'file2'],
+            'node': [self.revs[1], self.revs[1],],
+            'permissions': ['-rw-r--r--', '-rw-r--r--'],
+            'size': [str(len(self.files[1])), str(len(self.files[0]))],
+        }
         result = list(storage.listdir(''))
-        answer = [
-        {
-            'author': '',
-            'permissions': '-rw-r--r--',
-            'desc': 'added2',
-            'node': self.revs[1],
-            'date': result[0]['date'],
-            'size': str(len(self.files[1])),
-            'basename': 'file1',
-            'file': 'file1',
-            'mimetype': result[0]['mimetype'],
-            'contents': result[0]['contents'],
-            'baseview': 'file',
-            'fullpath': None,
-            'contenttype': 'file',
-            'external': None,
-        },
-        {
-            'author': '',
-            'permissions': '-rw-r--r--',
-            'desc': 'added2',
-            'node': self.revs[1],
-            'date': result[1]['date'],
-            'size': str(len(self.files[0])),
-            'basename': 'file2',
-            'file': 'file2',
-            'mimetype': result[1]['mimetype'],
-            'contents': result[1]['contents'],
-            'baseview': 'file',
-            'fullpath': None,
-            'contenttype': 'file',
-            'external': None,
-        },
-        ]
-        self.assertEqual(answer, result)
+        self.assertEqualAnswerTable(answer_table, result)
 
     def test_510_listdir_onfile_fail(self):
         storage = GitStorage(self.workspace)
