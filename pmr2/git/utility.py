@@ -128,7 +128,11 @@ class GitStorage(BaseStorage):
             fragments = list(reversed(path.split('/')))
             node = self.repo.revparse_single(self.rev).tree
             while fragments:
-                node = self.repo.get(node[fragments.pop()].oid)
+                fragment = fragments.pop()
+                if not fragment == '':
+                    # no empty string entries, also skips over '//' and
+                    # leaves the final node (if directory) as the tree.
+                    node = self.repo.get(node[fragment].oid)
             if cls is None or isinstance(node, cls):
                 return node
         except KeyError:
@@ -162,7 +166,7 @@ class GitStorage(BaseStorage):
             'file': path,
             'mimetype': lambda: mimetypes.guess_type(blob.data)[0]
                 or 'application/octet-stream',
-            'contents': blob.data,
+            'contents': lambda: node.read_raw(),
             'baseview': 'file',
             'fullpath': None,
             'contenttype': None,
@@ -272,7 +276,7 @@ class GitStorage(BaseStorage):
             'date': '',
             'size': '',
             'path': path,
-            'contents': None,  # in hg it's a method for listing dir
+            'contents': lambda: self.listdir(path)
         })
 
     def log(self, start, count, branch=None, shortlog=False):
