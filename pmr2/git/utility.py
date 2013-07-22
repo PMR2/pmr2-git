@@ -1,5 +1,5 @@
 import re
-from os.path import basename
+from os.path import basename, join
 from cStringIO import StringIO
 import mimetypes
 
@@ -20,13 +20,15 @@ from pmr2.app.workspace.interfaces import IWorkspace
 from pmr2.app.workspace.storage import StorageUtility
 from pmr2.app.workspace.storage import BaseStorage
 
+logger = logging.getLogger('pmr2.git')
+
 
 class GitStorageUtility(StorageUtility):
     title = 'Git'
 
     def create(self, context):
         rp = zope.component.getUtility(IPMR2GlobalSettings).dirOf(context)
-        raise NotImplementedError
+        init_repository(join(rp, '.git'), bare=True)
 
     def acquireFrom(self, context):
         return GitStorage(context)

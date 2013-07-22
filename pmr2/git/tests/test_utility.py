@@ -5,7 +5,7 @@ import os
 from time import time
 import tarfile
 import zipfile
-from os.path import basename, dirname, join
+from os.path import basename, dirname, join, isdir
 from logging import getLogger
 from cStringIO import StringIO
 
@@ -631,6 +631,14 @@ class UtilityTestCase(TestCase):
         storage = utility(self.workspace)
         self.assert_(isinstance(storage, GitStorage))
         self.assert_(IStorage.providedBy(storage))
+
+    def test_0010_utility_create(self):
+        repodir = join(self.testdir, 'create_test')
+        workspace = DummyWorkspace(repodir)
+        self.assertFalse(isdir(join(repodir, '.git')))
+        utility = GitStorageUtility()
+        utility.create(workspace)
+        self.assertTrue(isdir(join(repodir, '.git')))
 
     def test_0100_sync(self):
         utility = GitStorageUtility()
