@@ -7,13 +7,13 @@ ARCHIVE_NAME = 'repodata.tgz'
 ARCHIVE_PATH = join(dirname(__file__), ARCHIVE_NAME)
 ARCHIVE_REVS = [
     '42a9021e2e4df151c3255b5429899f421b0c3431',
-    'dbe83b457c03f8e5e499b7df245f8ad25ece356d',
-    '828a817c0a7a1508e6a605eb5bd0cf827c671af6',
-    '44565054bc19b5943184082431bac54312798ffb',
-    '4760073867fcd0f174717a011b19f2b7cd04ed13',
-    'da9807a87faaebbcdf0f719a3a7835cede4a9c52',
-    '5ce98dfd7d9dec8c7b7c6b749dc746336ee57db5',
-    'f3e97964e86ac1118dc7509a7f2a85e61feca75c',
+    '67e07ebc8b3a0c646f4a9f898c543ad1a56e1fb8',
+    '0a6808653e657eac20d447cf36022010bdbd3253',
+    '090ab454beca05a8ab5b5e9bd15c06eaba790a8a',
+    '93c2615285898ffaf4ea81611e54a64c99a157cb',
+    '0358f183cc3ede11a357a807c80218f74fa4a539',
+    'c9de8a045ef5d352441d69b630f924f12d621a77',
+    'eab05fccc349fbeb57ade09a197ddc72cd9e4388',
 ]
 
 def extract_archive(path, archive_path=ARCHIVE_PATH):
