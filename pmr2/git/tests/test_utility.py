@@ -427,7 +427,7 @@ class StorageTestCase(TestCase):
                 '': '_subrepo',
                 'location': 'http://models.example.com/w/import1',
                 'path': '',
-                'rev': 'ce679be0c07e30e81f93cc308ccdaab97b4da313',
+                'rev': '00cf337ef94f882f2585684c1c5c601285312f85',
             },
         }
         self.assertEqual(answer, result)
@@ -454,7 +454,7 @@ class StorageTestCase(TestCase):
                 '': '_subrepo',
                 'location': 'http://models.example.com/w/import1',
                 'path': 'if1',
-                'rev': 'ce679be0c07e30e81f93cc308ccdaab97b4da313',
+                'rev': '00cf337ef94f882f2585684c1c5c601285312f85',
             },
         }
         self.assertEqual(answer, result)
@@ -463,7 +463,6 @@ class StorageTestCase(TestCase):
         storage = GitStorage(self.repodata)
         storage.checkout(util.ARCHIVE_REVS[1])
         # does not exist yet
-        result = storage.pathinfo('ext/import2/if2')
         self.assertRaises(PathNotFoundError, storage.pathinfo, 
             'ext/import2/if2')
 
@@ -489,12 +488,12 @@ class StorageTestCase(TestCase):
                 '': '_subrepo',
                 'location': 'http://models.example.com/w/import1',
                 'path': 'if1',
-                'rev': '4df76eccfee8a0d27844b5c069bc399bb0e4e043',
+                'rev': '466b6256bd9a1588256558a8e644f04b13bc04f3',
             },
         }
         self.assertEqual(answer, result)
 
-    def test_652_pathinfo_external(self):
+    def test_662_pathinfo_external(self):
         storage = GitStorage(self.repodata)
         storage.checkout(util.ARCHIVE_REVS[4])
         result = storage.pathinfo('ext/import2/if2')
@@ -516,7 +515,34 @@ class StorageTestCase(TestCase):
                 '': '_subrepo',
                 'location': 'http://models.example.com/w/import2',
                 'path': 'if2',
-                'rev': 'a413e4d7eb3846209aa8df44addf625093aac231',
+                'rev': 'bdd04624e693f6e69c394b438c8b845e17ee6bfa',
+            },
+        }
+        self.assertEqual(answer, result)
+
+    def test_663_pathinfo_external_external(self):
+        storage = GitStorage(self.repodata)
+        storage.checkout(util.ARCHIVE_REVS[4])
+        result = storage.pathinfo('ext/import1/import2/README')
+        answer = {
+            'author': '',
+            'permissions': 'lrwxrwxrwx',
+            'desc': '',
+            'node': util.ARCHIVE_REVS[4],
+            'date': result['date'],
+            'size': '',
+            'basename': 'README',
+            'file': 'ext/import1/import2/README',
+            'mimetype': result['mimetype'],
+            'contents': result['contents'],
+            'baseview': 'file',
+            'fullpath': None,
+            'contenttype': None,
+            'external': {
+                '': '_subrepo',
+                'location': 'http://models.example.com/w/import1',
+                'path': 'import2/README',
+                'rev': '466b6256bd9a1588256558a8e644f04b13bc04f3',
             },
         }
         self.assertEqual(answer, result)

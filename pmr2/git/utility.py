@@ -1,6 +1,7 @@
 import re
 from os.path import basename, join
 from cStringIO import StringIO
+import logging
 import mimetypes
 
 import zope.component
@@ -19,6 +20,10 @@ from pmr2.app.workspace.exceptions import *
 from pmr2.app.workspace.interfaces import IWorkspace
 from pmr2.app.workspace.storage import StorageUtility
 from pmr2.app.workspace.storage import BaseStorage
+
+from .ext import parse_gitmodules
+
+GIT_MODULE_FILE = '.gitmodules'
 
 logger = logging.getLogger('pmr2.git')
 
@@ -116,6 +121,9 @@ class GitStorage(BaseStorage):
     def checkout(self, rev=None):
         # All the bad practices I did when building pmr2.mercurial will
         # be carried into here until a cleaner method is provided.
+        # XXX None is invalid rev.
+        if rev is None:
+            rev = 'HEAD'
         try:
             self.__commit = self.repo.revparse_single(rev)
         except KeyError:
@@ -127,14 +135,39 @@ class GitStorage(BaseStorage):
 
     def _get_obj(self, path, cls=None):
         try:
+            breadcrumbs = []
             fragments = list(reversed(path.split('/')))
-            node = self.repo.revparse_single(self.rev).tree
+            root = self.repo.revparse_single(self.rev).tree
+            node = root
+            oid = None
             while fragments:
                 fragment = fragments.pop()
                 if not fragment == '':
                     # no empty string entries, also skips over '//' and
                     # leaves the final node (if directory) as the tree.
-                    node = self.repo.get(node[fragment].oid)
+                    oid = node[fragment].oid
+                    node = self.repo.get(oid)
+                breadcrumbs.append(fragment)
+                if node is None:
+                    # strange.  Looks like it's either submodules only
+                    # have entry nodes or pygit2 doesn't fully support
+                    # this.  Try to manually resolve the .gitmodules
+                    # file.
+                    if not cls == Blob:
+                        # If we want a file, forget it.
+                        submods = parse_gitmodules(self.repo.get(
+                            root[GIT_MODULE_FILE].oid).data)
+                        submod = submods.get('/'.join(breadcrumbs))
+                        if submod:
+                            fragments.reverse()
+                            return {
+                                '': '_subrepo',
+                                'location': submod,
+                                'path': '/'.join(fragments),
+                                'rev': oid.hex,
+                            }
+                    raise PathNotDirError('path not dir')
+
             if cls is None or isinstance(node, cls):
                 return node
         except KeyError:
@@ -272,6 +305,20 @@ class GitStorage(BaseStorage):
         obj = self._get_obj(path)
         if isinstance(obj, Blob):
             return self.fileinfo(path, obj)
+        elif isinstance(obj, dict):
+            # XXX assume to be a dict defining a git submodule
+              return self.format(**{
+                  'permissions': 'lrwxrwxrwx',
+                  'contenttype': None,
+                  'node': self.rev,
+                  'date': '',
+                  'size': '',
+                  'path': path,
+                  'desc': '',
+                  'contents': '',
+                  'external': obj,
+              })
+
         return self.format(**{
             'permissions': 'drwxr-xr-x',
             'node': self.rev,
