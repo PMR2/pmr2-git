@@ -217,10 +217,11 @@ class GitStorage(BaseStorage):
                 else:
                     name = node.name
 
-                if isinstance(self.repo.get(node.oid), Blob):
+                obj = self.repo.get(node.oid)
+                if isinstance(obj, Blob):
                     results.append(name)
-                elif isinstance(self.repo.get(node.oid), Tree):
-                    results.extend(_files(self.repo.get(node.oid, name), name))
+                elif isinstance(obj, Tree):
+                    results.extend(_files(obj, name))
             return results
 
         commit = self.repo.revparse_single(self.rev)
