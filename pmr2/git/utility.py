@@ -21,7 +21,7 @@ from pmr2.app.workspace.interfaces import IWorkspace
 from pmr2.app.workspace.storage import StorageUtility
 from pmr2.app.workspace.storage import BaseStorage
 
-from .ext import parse_gitmodules, archive_tgz
+from .ext import parse_gitmodules, archive_tgz, archive_zip
 
 GIT_MODULE_FILE = '.gitmodules'
 
@@ -108,8 +108,7 @@ class GitStorage(BaseStorage):
         return self.rev[:12]
 
     def archive_zip(self):
-        arctype = 'zip'
-        raise NotImplementedError
+        return archive_zip(self.repo, self._commit, self.context.id)
 
     def archive_tgz(self):
         return archive_tgz(self.repo, self._commit, self.context.id)
