@@ -1,6 +1,7 @@
 import re
 from os.path import basename, join
 from cStringIO import StringIO
+from hashlib import sha1
 import logging
 import mimetypes
 
@@ -46,13 +47,60 @@ class GitStorageUtility(StorageUtility):
         raise NotImplementedError
 
     def syncIdentifier(self, context, identifier):
-        # XXX should be named syncWithIdentifier
-        raise NotImplementedError
+        # should be named syncWithIdentifier
+
+        # XXX at this point in time the only way to pull is to create a
+        # remote that will also be stored.  For now we cheat a bit by
+        # generating a unique name for the remote url by using sha1sum
+        rp = zope.component.getUtility(IPMR2GlobalSettings).dirOf(context)
+        repo = Repository(discover_repository(rp))
+        remote_name = sha1(identifier).hexdigest()
+        try:
+            remote = repo.create_remote(remote_name, identifier)
+        except ValueError:
+            # this remote already exists, do a lookup based on the same
+            # sum.
+            for remote in repo.remotes:
+                if remote.name == remote_name:
+                    break
+
+        # fetch the remote.
+        result = remote.fetch()
+
+        # try to resolve a common anscestor between HEAD and FETCH_HEAD
+        head = repo.revparse_single('HEAD')
+        fetch_head = repo.revparse_single('FETCH_HEAD')
+
+        if head.oid == fetch_head.oid:
+            return True, 'Source and target are identical.'
+
+        # raises KeyError if no merge bases found.
+        oid = repo.merge_base(head.oid, fetch_head.oid)
+
+        # Three different outcomes between the remaining cases.
+        if oid.hex not in (head.oid.hex, fetch_head.oid.hex):
+            # common ancestor is beyond both of these, not going to
+            # attempt a merge here and will assume this:
+            raise ValueError('heads will diverge.')
+        elif oid.hex == fetch_head.oid.hex:
+            # Remote is the common base, so nothing to do.
+            return True, 'No new changes found.'
+
+        # This case remains: oid.hex == head.oid.hex
+        # Local is the common base, so remote is newer, fast-forward.
+        try:
+            ref = repo.lookup_reference('refs/heads/master')
+            ref.delete()
+        except KeyError:
+            # assume repo is empty.
+            pass
+
+        repo.create_reference('refs/heads/master', fetch_head.oid)
+
+        return True, str(result)
 
     def syncWorkspace(self, context, source):
-        # XXX should be named syncWithWorkspace
-        # TODO verify that this works as intended when above is
-        # implemented.
+        # should be named syncWithWorkspace
         remote = zope.component.getUtility(IPMR2GlobalSettings).dirOf(source)
         return self.syncIdentifier(context, remote)
 

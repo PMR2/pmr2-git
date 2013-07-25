@@ -675,31 +675,41 @@ class UtilityTestCase(TestCase):
         target = join(self.testdir, 'simple1')
 
         # sync simple2 with simple1
-        utility.sync(self.simple2, target)
+        result = utility.sync(self.simple2, target)
         simple2 = utility(self.simple2)
         simple2.checkout()
         filelist = simple2.files()
         self.assertEqual(filelist, self.filelist1)
 
+    def test_0101_reverse_sync(self):
+        utility = GitStorageUtility()
+        simple1 = utility(self.simple1)
+        filelist = simple1.files()
+        # verify file list for simple1
+        self.assertEqual(filelist, self.filelist1)
+        target = join(self.testdir, 'simple2')
+
+        # sync simple2 with simple1
+        result = utility.sync(self.simple1, target)
+        filelist = simple1.files()
+        # should result in no change and no errors.
+        self.assertEqual(filelist, self.filelist1)
+
     def test_0101_sync_same_root_conflict_filenames(self):
         utility = GitStorageUtility()
         target = join(self.testdir, 'simple1')
-        # sync simple3 with simple1
-        utility.sync(self.simple3, target)
-        simple3 = utility(self.simple3)
-        simple3.checkout()
-        filelist = simple3.files()
-        self.assertEqual(filelist, self.filelist1)
-
-        # should be a better way to show this.
-        self.assertEqual(len(simple3.storage._repo.heads()), 2)
+        # sync simple3 with simple1, and our current implementation will
+        # corwardly abort.
+        self.assertRaises(ValueError, utility.sync, self.simple3, target)
 
     def test_0110_sync_mismatch_root(self):
         utility = GitStorageUtility()
         target = self.repodir
-        # just trap the most basic form
-        self.assertRaises(Exception, utility.sync, self.simple3, target)
-        # will need to update this once this exception is dealt with
+        # should be "No merge base found"
+        self.assertRaises(KeyError, utility.sync, self.simple3, target)
+
+        target = join(self.testdir, 'import1')
+        self.assertRaises(KeyError, utility.sync, self.simple3, target)
 
 
 def test_suite():
