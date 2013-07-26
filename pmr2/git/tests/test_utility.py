@@ -268,6 +268,8 @@ class StorageTestCase(TestCase):
 
         # TODO validate the real formatted datetime.
         self.assertEqual(answer, result)
+        self.assertEqual(result['contents'](), 'This is a test file.\n')
+        self.assertTrue(result['mimetype']())
 
     def test_500_listdir_root(self):
         storage = GitStorage(self.workspace)

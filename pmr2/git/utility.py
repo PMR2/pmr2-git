@@ -267,9 +267,9 @@ class GitStorage(BaseStorage):
             'size': blob.size,
             'basename': path.split('/')[-1],
             'file': path,
-            'mimetype': lambda: mimetypes.guess_type(blob.data)[0]
+            'mimetype': lambda: mimetypes.guess_type(blob.read_raw())[0]
                 or 'application/octet-stream',
-            'contents': lambda: node.read_raw(),
+            'contents': blob.read_raw,
             'baseview': 'file',
             'fullpath': None,
             'contenttype': None,
