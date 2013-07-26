@@ -32,6 +32,14 @@ logger = logging.getLogger('pmr2.git')
 class GitStorageUtility(StorageUtility):
     title = 'Git'
 
+    def validateExternalURI(self, uri):
+        # hardcoding these as default valid for now.
+        validURI = ['http://', 'https://', 'git://']
+        for i in validURI:
+            if uri.startswith(i):
+                return True
+        return False
+
     def create(self, context):
         rp = zope.component.getUtility(IPMR2GlobalSettings).dirOf(context)
         init_repository(join(rp, '.git'), bare=True)
