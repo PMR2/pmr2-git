@@ -67,9 +67,17 @@ class GitStorageUtility(StorageUtility):
         # fetch the remote.
         result = remote.fetch()
 
-        # try to resolve a common anscestor between HEAD and FETCH_HEAD
-        head = repo.revparse_single('HEAD')
+        # XXX how do we verify that this is the FETCH_HEAD from this and
+        # not a stale one?
         fetch_head = repo.revparse_single('FETCH_HEAD')
+
+        # try to resolve a common anscestor between HEAD and FETCH_HEAD
+        try:
+            head = repo.revparse_single('HEAD')
+        except:
+            # New repo, create the reference now and finish.
+            repo.create_reference('refs/heads/master', fetch_head.oid)
+            return True, str(result)
 
         if head.oid == fetch_head.oid:
             return True, 'Source and target are identical.'

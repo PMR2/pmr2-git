@@ -711,6 +711,23 @@ class UtilityTestCase(TestCase):
         target = join(self.testdir, 'import1')
         self.assertRaises(KeyError, utility.sync, self.simple3, target)
 
+    def test_0111_sync_create(self):
+        repodir = join(self.testdir, 'create_test')
+        workspace = DummyWorkspace(repodir)
+        utility = GitStorageUtility()
+        utility.create(workspace)
+        target = self.repodata
+        result = utility.sync(workspace, target)
+        create_test = utility(workspace)
+        filelist = create_test.files()
+        self.assertTrue('1/f1' in filelist)
+        self.assertTrue('1/f2' in filelist)
+        self.assertTrue('1/2/2f2' in filelist)
+        self.assertTrue('README' in filelist)
+        self.assertTrue('ext/README' in filelist)
+        self.assertTrue('file1' in filelist)
+        self.assertTrue('file2' in filelist)
+
 
 def test_suite():
     from unittest import TestSuite, makeSuite
