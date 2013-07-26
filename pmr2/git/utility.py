@@ -154,14 +154,13 @@ class GitStorage(BaseStorage):
     def rev(self):
         if self.__commit:
             return self.__commit.hex
-        else:
-            # cripes yet more bad practices from before.
-            return '0' * 40
+        return None
 
     @property
     def shortrev(self):
         # TODO this is an interim solution.
-        return self.rev[:12]
+        if self.rev:
+            return self.rev[:12]
 
     def archive_zip(self):
         return archive_zip(self.repo, self._commit, self.context.id)
@@ -187,11 +186,18 @@ class GitStorage(BaseStorage):
     # Unit tests would be useful here, even if this class will only
     # produce output for the browser classes.
 
+    def _get_empty_root(self):
+        return {'': '_empty_root'}
+
     def _get_obj(self, path, cls=None):
+        if path == '' and self._commit is None:
+            # special case
+            return self._get_empty_root()
+
+        root = self._commit.tree
         try:
             breadcrumbs = []
             fragments = list(reversed(path.split('/')))
-            root = self.repo.revparse_single(self.rev).tree
             node = root
             oid = None
             while fragments:
@@ -278,8 +284,9 @@ class GitStorage(BaseStorage):
                     results.extend(_files(obj, name))
             return results
 
-        commit = self.repo.revparse_single(self.rev)
-        results = _files(commit.tree)
+        if not self._commit:
+            return []
+        results = _files(self._commit.tree)
         return results
 
     def listdir(self, path):
@@ -361,18 +368,28 @@ class GitStorage(BaseStorage):
         if isinstance(obj, Blob):
             return self.fileinfo(path, obj)
         elif isinstance(obj, dict):
-            # XXX assume to be a dict defining a git submodule
-              return self.format(**{
-                  'permissions': 'lrwxrwxrwx',
-                  'contenttype': None,
-                  'node': self.rev,
-                  'date': '',
-                  'size': '',
-                  'path': path,
-                  'desc': '',
-                  'contents': '',
-                  'external': obj,
-              })
+            if obj[''] == '_subrepo':
+                return self.format(**{
+                    'permissions': 'lrwxrwxrwx',
+                    'contenttype': None,
+                    'node': self.rev,
+                    'date': '',
+                    'size': '',
+                    'path': path,
+                    'desc': '',
+                    'contents': '',
+                    'external': obj,
+                })
+
+            elif obj[''] == '_empty_root':
+                return self.format(**{
+                    'permissions': 'drwxr-xr-x',
+                    'node': self.rev,
+                    'date': '',
+                    'size': '',
+                    'path': path,
+                    'contents': lambda: [],
+                })
 
         return self.format(**{
             'permissions': 'drwxr-xr-x',
