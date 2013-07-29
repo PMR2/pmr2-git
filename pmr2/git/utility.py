@@ -75,16 +75,26 @@ class GitStorageUtility(StorageUtility):
         # fetch the remote.
         result = remote.fetch()
 
-        # XXX how do we verify that this is the FETCH_HEAD from this and
-        # not a stale one?
-        fetch_head = repo.revparse_single('FETCH_HEAD')
+        # XXX when we figure out how to let users pick their primary
+        # branches, use what they specify instead.
+        branch = 'master'
+        remote_branch = 'remotes/%s/%s' % (remote_name, branch)
+        try:
+            fetch_head = repo.revparse_single(remote_branch)
+            target = 'master'
+        except KeyError:
+            # XXX how do we verify that this is the FETCH_HEAD from this
+            # and not a stale one?
+            fetch_head = repo.revparse_single('FETCH_HEAD')
+            target = 'HEAD'
 
         # try to resolve a common anscestor between HEAD and FETCH_HEAD
         try:
-            head = repo.revparse_single('HEAD')
+            local_branch = 'refs/heads/%s' % branch
+            head = repo.revparse_single(target)
         except:
             # New repo, create the reference now and finish.
-            repo.create_reference('refs/heads/master', fetch_head.oid)
+            repo.create_reference(local_branch, fetch_head.oid)
             return True, str(result)
 
         if head.oid == fetch_head.oid:
@@ -105,13 +115,13 @@ class GitStorageUtility(StorageUtility):
         # This case remains: oid.hex == head.oid.hex
         # Local is the common base, so remote is newer, fast-forward.
         try:
-            ref = repo.lookup_reference('refs/heads/master')
+            ref = repo.lookup_reference(local_branch)
             ref.delete()
         except KeyError:
             # assume repo is empty.
             pass
 
-        repo.create_reference('refs/heads/master', fetch_head.oid)
+        repo.create_reference(local_branch, fetch_head.oid)
 
         return True, str(result)
 
@@ -351,6 +361,7 @@ class GitStorage(BaseStorage):
                 })
 
             # then return files
+            # XXX merge this with above, and add submodule support.
             for entry in tree:
                 node = self.repo.get(entry.oid)
                 if not isinstance(node, Blob):
