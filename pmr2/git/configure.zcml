@@ -5,5 +5,11 @@
 
   <include file="utility.zcml" />
 
+  <utility
+      name="git"
+      component=".protocol.git"
+      provides="pmr2.app.workspace.pas.interfaces.IStorageProtocol"
+      />
+
 </configure>
 
