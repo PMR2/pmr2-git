@@ -1,6 +1,8 @@
 import zope.schema
 import zope.interface
 
+from pmr2.app.workspace.interfaces import IWorkspace
+
 
 class IAppLayer(zope.interface.Interface):
     """
@@ -16,3 +18,9 @@ class IPMR2GitWorkspaceAdapter(zope.interface.Interface):
 
     # XXX missing fields (such as rev)
     # XXX missing methods
+
+
+class IGitWorkspace(IWorkspace):
+    """
+    Special marker for git workspaces to enable the git protocol views.
+    """

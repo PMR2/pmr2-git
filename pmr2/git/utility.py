@@ -6,6 +6,7 @@ import logging
 import mimetypes
 
 import zope.component
+import zope.interface
 
 from pygit2 import Signature
 from pygit2 import Repository
@@ -23,6 +24,7 @@ from pmr2.app.workspace.storage import StorageUtility
 from pmr2.app.workspace.storage import BaseStorage
 
 from .ext import parse_gitmodules, archive_tgz, archive_zip
+from .interfaces import IGitWorkspace
 
 GIT_MODULE_FILE = '.gitmodules'
 
@@ -43,12 +45,15 @@ class GitStorageUtility(StorageUtility):
     def create(self, context):
         rp = zope.component.getUtility(IPMR2GlobalSettings).dirOf(context)
         init_repository(join(rp, '.git'), bare=True)
+        # Also tag the object with our custom interface.
+        zope.interface.alsoProvides(context, IGitWorkspace)
 
     def acquireFrom(self, context):
         return GitStorage(context)
 
     def isprotocol(self, request):
-        # TODO implement the protocol support and use that to check.
+        # Git does things differently, so we are going to offer a
+        # dedicated view instead.
         return False
 
     def protocol(self, context, request):

@@ -1,0 +1,42 @@
+<configure 
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:browser="http://namespaces.zope.org/browser"
+    i18n_domain="pmr2.git">
+
+  <browser:page
+      for=".interfaces.IGitWorkspace"
+      name="HEAD"
+      class=".browser.GitProtocol"
+      permission="zope2.View"
+      />
+
+  <browser:page
+      for=".interfaces.IGitWorkspace"
+      name="info"
+      class=".browser.GitProtocol"
+      permission="zope2.View"
+      />
+
+  <browser:page
+      for=".interfaces.IGitWorkspace"
+      name="objects"
+      class=".browser.GitProtocol"
+      permission="zope2.View"
+      />
+
+  <browser:page
+      for=".interfaces.IGitWorkspace"
+      name="git-upload-pack"
+      class=".browser.GitProtocol"
+      permission="zope2.View"
+      />
+
+  <browser:page
+      for=".interfaces.IGitWorkspace"
+      name="git-receive-pack"
+      class=".browser.GitProtocol"
+      permission="pmr2.app.security.HgPush"
+      />
+
+</configure>
+
