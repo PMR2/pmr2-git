@@ -198,6 +198,7 @@ class GitStorage(BaseStorage):
         # All the bad practices I did when building pmr2.mercurial will
         # be carried into here until a cleaner method is provided.
         # XXX None is invalid rev.
+        self._lastcheckout = rev
         if rev is None:
             rev = 'HEAD'
         try:
@@ -349,6 +350,25 @@ class GitStorage(BaseStorage):
             # return trees first:
             for entry in tree:
                 node = self.repo.get(entry.oid)
+                if node is not None:
+                    continue
+
+                fullpath = path and '%s/%s' % (path, entry.name) or entry.name
+
+                yield self.format(**{
+                    'permissions': 'lrwxrwxrwx',
+                    'contenttype': 'git',  # always git.
+                    'node': self.rev,
+                    'date': '',
+                    'size': '',
+                    'path': fullpath,
+                    'desc': '',
+                    'contents': '',  # XXX
+                })
+
+            # return trees first:
+            for entry in tree:
+                node = self.repo.get(entry.oid)
                 if not isinstance(node, Tree):
                     continue
 
@@ -366,7 +386,6 @@ class GitStorage(BaseStorage):
                 })
 
             # then return files
-            # XXX merge this with above, and add submodule support.
             for entry in tree:
                 node = self.repo.get(entry.oid)
                 if not isinstance(node, Blob):
@@ -388,6 +407,11 @@ class GitStorage(BaseStorage):
         return _listdir()
 
     def pathinfo(self, path):
+        if self._commit is None: 
+            if self._lastcheckout != 'HEAD':
+                raise PathNotFoundError('commit not found')
+            # give an exception to HEAD
+
         obj = self._get_obj(path)
         if isinstance(obj, Blob):
             return self.fileinfo(path, obj)

@@ -71,6 +71,8 @@ class GitProtocol(TraversePage):
         self.request.stdin.seek(0)
         p = Popen(stdin=PIPE, stdout=PIPE, stderr=PIPE,
             env=self.env, *([self.backend_bin]))
+        # XXX memory requirements will explode because everything is
+        # buffered here.
         output, err = p.communicate(self.request.stdin.read())
         if err:
             raise Exception(err)  # XXX placeholder.
