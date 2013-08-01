@@ -195,9 +195,10 @@ class GitStorage(BaseStorage):
         # All the bad practices I did when building pmr2.mercurial will
         # be carried into here until a cleaner method is provided.
         # XXX None is invalid rev.
-        self._lastcheckout = rev
         if rev is None:
             rev = 'HEAD'
+
+        self._lastcheckout = rev
         try:
             self.__commit = self.repo.revparse_single(rev)
         except KeyError:

@@ -52,6 +52,15 @@ a usable a GitStorage instance::
     >>> '.git' in storage.repo.path
     True
 
+Initial page should render::
+
+    >>> request = TestRequest()
+    >>> wkspc = self.portal.workspace.foobarbaz
+    >>> testpage = browser.WorkspacePage(wkspc, request)
+    >>> result = testpage()
+    >>> 'Workspace Summary' in result
+    True
+
 We can test this new empty workspace later by pushing some data to it.
 
 Rendering
@@ -64,6 +73,8 @@ created, we can now test the basic rendering of the landing page::
     >>> wkspc = self.portal.workspace.repodata
     >>> testpage = browser.WorkspacePage(wkspc, request)
     >>> result = testpage()
+    >>> 'Workspace Summary' in result
+    True
 
 Now for a file listing, without any traverse subpaths::
 
