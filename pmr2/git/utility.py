@@ -4,6 +4,8 @@ from cStringIO import StringIO
 from hashlib import sha1
 import logging
 import mimetypes
+from datetime import datetime
+from dateutil.tz import tzoffset
 
 import zope.component
 import zope.interface
@@ -29,6 +31,11 @@ from .interfaces import IGitWorkspace
 GIT_MODULE_FILE = '.gitmodules'
 
 logger = logging.getLogger('pmr2.git')
+
+
+def rfc2822(committer):
+    return datetime.fromtimestamp(committer.time,
+        tzoffset(None, committer.offset * 60))
 
 
 class GitStorageUtility(StorageUtility):
@@ -154,20 +161,10 @@ class GitStorage(BaseStorage):
 
         self.checkout('HEAD')
 
-    __datefmt_filter = {
-        'rfc2822': 'rfc822date',
-        'rfc3339': 'rfc3339date',
-        'iso8601': 'isodate',
-    }
-
     _archiveFormats = {
         'zip': ('Zip File', '.zip', 'application/zip',),
         'tgz': ('Tarball (gzipped)', '.tar.gz', 'application/x-tar',),
     }
-
-    @property
-    def datefmtfilter(self):
-        return GitStorage.__datefmt_filter[self.datefmt]
 
     @property
     def _commit(self):
@@ -279,7 +276,7 @@ class GitStorage(BaseStorage):
             'permissions': '',
             'desc': self._commit.message,
             'node': self._commit.hex,
-            'date': self._commit.committer.time,  # raw unix
+            'date': rfc2822(self._commit.committer),
             'size': blob.size,
             'basename': path.split('/')[-1],
             'file': path,
@@ -397,7 +394,7 @@ class GitStorage(BaseStorage):
                     'permissions': '-rw-r--r--',
                     'contenttype': 'file',
                     'node': self.rev,
-                    'date': self._commit.committer.time,
+                    'date': rfc2822(self._commit.committer).date(),
                     'size': str(node.size),
                     'path': fullpath,
                     'desc': self._commit.message,
@@ -464,7 +461,7 @@ class GitStorage(BaseStorage):
                     raise StopIteration
                 yield {
                     'author': commit.committer.name,
-                    'date': commit.committer.time,
+                    'date': rfc2822(commit.committer).date(),
                     'node': commit.hex,
                     'rev': commit.hex,
                     'desc': commit.message
