@@ -51,7 +51,11 @@ class GitStorageUtility(StorageUtility):
 
     def create(self, context):
         rp = zope.component.getUtility(IPMR2GlobalSettings).dirOf(context)
-        init_repository(join(rp, '.git'), bare=True)
+        repo = init_repository(join(rp, '.git'), bare=True)
+
+        # Allow receivepack by default for git push.
+        repo.config.set_multivar('http.receivepack', '', 'true')
+
         # Also tag the object with our custom interface.
         zope.interface.alsoProvides(context, IGitWorkspace)
 
