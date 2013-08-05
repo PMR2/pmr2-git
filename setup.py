@@ -26,6 +26,7 @@ setup(name='pmr2.git',
           'setuptools',
           # -*- Extra requirements: -*-
           'pygit2',
+          'dulwich',
       ],
       entry_points="""
       # -*- Entry points: -*-
