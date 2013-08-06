@@ -3,6 +3,7 @@ from os.path import join
 
 import zope.component
 from zope.component import testing
+import zope.interface
 from Testing import ZopeTestCase as ztc
 from Zope2.App import zcml
 from Products.Five import fiveconfigure
@@ -17,10 +18,12 @@ from pmr2.app.workspace.content import Workspace
 from pmr2.app.workspace.tests.base import WorkspaceDocTestCase
 from pmr2.app.exposure.tests.base import ExposureDocTestCase
 
+from pmr2.git.interfaces import IGitWorkspace
+
 
 @onsetup
 def setup():
-    import pmr2.app
+    import pmr2.git
     fiveconfigure.debug_mode = True
     zcml.load_config('configure.zcml', pmr2.git)
     zcml.load_config('test.zcml', pmr2.testing)
@@ -68,6 +71,7 @@ class GitDocTestCase(ExposureDocTestCase):
             w.storage = u'git'
             w.title = u''
             w.description = u''
+            zope.interface.alsoProvides(w, IGitWorkspace)
             self.portal.workspace[name] = w
 
         mkgit_workspace('import1')

@@ -19,6 +19,9 @@ from pygit2 import Commit
 from pygit2 import discover_repository, init_repository
 from pygit2 import GIT_SORT_TIME
 
+from dulwich.repo import Repo
+from dulwich.client import HttpGitClient
+
 from pmr2.app.settings.interfaces import IPMR2GlobalSettings
 from pmr2.app.workspace.exceptions import *
 from pmr2.app.workspace.interfaces import IWorkspace
@@ -72,46 +75,60 @@ class GitStorageUtility(StorageUtility):
 
     def syncIdentifier(self, context, identifier):
         # should be named syncWithIdentifier
-
-        # XXX at this point in time the only way to pull is to create a
-        # remote that will also be stored.  For now we cheat a bit by
-        # generating a unique name for the remote url by using sha1sum
         rp = zope.component.getUtility(IPMR2GlobalSettings).dirOf(context)
-        repo = Repository(discover_repository(rp))
-        remote_name = sha1(identifier).hexdigest()
-        try:
-            remote = repo.create_remote(remote_name, identifier)
-        except ValueError:
-            # this remote already exists, do a lookup based on the same
-            # sum.
-            for remote in repo.remotes:
-                if remote.name == remote_name:
-                    break
 
-        # fetch the remote.
-        result = remote.fetch()
-
+        # XXX assuming master.
         # XXX when we figure out how to let users pick their primary
         # branches, use what they specify instead.
         branch = 'master'
-        remote_branch = 'remotes/%s/%s' % (remote_name, branch)
-        try:
-            fetch_head = repo.revparse_single(remote_branch)
-            target = 'master'
-        except KeyError:
-            # XXX how do we verify that this is the FETCH_HEAD from this
-            # and not a stale one?
-            fetch_head = repo.revparse_single('FETCH_HEAD')
-            target = 'HEAD'
 
-        # try to resolve a common anscestor between HEAD and FETCH_HEAD
+        # Since the network and remote handling aspect between dulwich
+        # and pygit2 have different strengths, i.e. dulwich has better
+        # remote network handling and fetching without having to create
+        # a named remote, and pygit2 for determining merge base for
+        # fast-forwarding the local to remote if applicable.
+
+        # Process starts with dulwich.
+        # 0. Connect to remote
+        # 1. Fetch content
+        # 2. Acquire merge target pairs.
+
+        # Then use pygit2.
+        # 3. If merge base between the two have diverted, abort.
+        # 4. If remote is fresher, fast forward local.
+
+        local = Repo(rp)
+
+        if identifier.startswith('http'):
+            root, frag = identifier.rsplit('/', 1)
+            client = HttpGitClient(root)
+            remote_refs = client.fetch(frag, local)
+        else:
+            client = Repo(identifier)
+            remote_refs = client.fetch(local)
+
+        branch_name = 'master'
+        branch = "refs/heads/%s" % branch_name
+
+        if branch in remote_refs:
+            merge_target = remote_refs[branch]
+        else:
+            # Unknown, fall back to HEAD.
+            merge_target = remote_refs['HEAD']
+
+        # Switch usage to libgit2/pygit2 repo for "merging".
+
+        repo = Repository(discover_repository(rp))
+        # convert merge_target from hex into oid.
+        fetch_head = repo.revparse_single(merge_target)
+
+        # try to resolve a common anscestor between fetched and local
         try:
-            local_branch = 'refs/heads/%s' % branch
-            head = repo.revparse_single(target)
+            head = repo.revparse_single(branch)
         except:
             # New repo, create the reference now and finish.
-            repo.create_reference(local_branch, fetch_head.oid)
-            return True, str(result)
+            repo.create_reference(branch, fetch_head.oid)
+            return True, 'Created new branch: %s' % branch
 
         if head.oid == fetch_head.oid:
             return True, 'Source and target are identical.'
@@ -131,15 +148,15 @@ class GitStorageUtility(StorageUtility):
         # This case remains: oid.hex == head.oid.hex
         # Local is the common base, so remote is newer, fast-forward.
         try:
-            ref = repo.lookup_reference(local_branch)
+            ref = repo.lookup_reference(branch)
             ref.delete()
         except KeyError:
             # assume repo is empty.
             pass
 
-        repo.create_reference(local_branch, fetch_head.oid)
+        repo.create_reference(branch, fetch_head.oid)
 
-        return True, str(result)
+        return True, 'Fast-forwarded branch: %s' % branch
 
     def syncWorkspace(self, context, source):
         # should be named syncWithWorkspace

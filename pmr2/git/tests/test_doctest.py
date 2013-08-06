@@ -11,7 +11,13 @@ def test_suite():
         test_class=base.GitDocTestCase,
         optionflags=doctest.NORMALIZE_WHITESPACE|doctest.ELLIPSIS,
     )
-    return TestSuite([browser])
+    synchronize = ztc.ZopeDocFileSuite(
+        'synchronize.rst', package='pmr2.git',
+        test_class=base.GitDocTestCase,
+        optionflags=doctest.NORMALIZE_WHITESPACE|doctest.ELLIPSIS,
+    )
+    synchronize.level = 9001
+    return TestSuite([browser, synchronize])
 
 if __name__ == '__main__':
     unittest.main(defaultTest='test_suite')
