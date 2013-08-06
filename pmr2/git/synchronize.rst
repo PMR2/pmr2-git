@@ -98,5 +98,9 @@ Ditto with using a path directly::
 
 Shutdown the test server::
 
-    >>> import Lifetime
-    >>> Lifetime.shutdown(0, fast=1)
+    >>> import threading
+    >>> from Testing.ZopeTestCase.threadutils import QuietThread
+    >>> for t in threading.enumerate():
+    ...     if isinstance(t, QuietThread):
+    ...         t._Thread__stop()
+    >>> import pdb;pdb.set_trace()
