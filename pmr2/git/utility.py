@@ -78,9 +78,10 @@ class GitStorageUtility(StorageUtility):
         rp = zope.component.getUtility(IPMR2GlobalSettings).dirOf(context)
 
         # XXX assuming master.
+        branch_name = 'master'
         # XXX when we figure out how to let users pick their primary
         # branches, use what they specify instead.
-        branch = 'master'
+        branch = "refs/heads/%s" % branch_name
 
         # Since the network and remote handling aspect between dulwich
         # and pygit2 have different strengths, i.e. dulwich has better
@@ -93,22 +94,26 @@ class GitStorageUtility(StorageUtility):
         # 1. Fetch content
         # 2. Acquire merge target pairs.
 
+        merge_target = self._fetch(rp, identifier, branch)
+
         # Then use pygit2.
         # 3. If merge base between the two have diverted, abort.
         # 4. If remote is fresher, fast forward local.
 
-        local = Repo(rp)
+        return self._fast_forward(rp, merge_target, branch)
 
-        if identifier.startswith('http'):
-            root, frag = identifier.rsplit('/', 1)
+    def _fetch(self, local_path, remote_id, branch):
+        # dulwich repo
+        local = Repo(local_path)
+
+        # Determine the fetch strategy based on protocol.
+        if remote_id.startswith('http'):
+            root, frag = remote_id.rsplit('/', 1)
             client = HttpGitClient(root)
             remote_refs = client.fetch(frag, local)
         else:
             client = Repo(identifier)
             remote_refs = client.fetch(local)
-
-        branch_name = 'master'
-        branch = "refs/heads/%s" % branch_name
 
         if branch in remote_refs:
             merge_target = remote_refs[branch]
@@ -118,7 +123,12 @@ class GitStorageUtility(StorageUtility):
 
         # Switch usage to libgit2/pygit2 repo for "merging".
 
-        repo = Repository(discover_repository(rp))
+        return merge_target
+
+    def _fast_forward(self, local_path, merge_target, branch):
+        # pygit2 repo
+        repo = Repository(discover_repository(local_path))
+
         # convert merge_target from hex into oid.
         fetch_head = repo.revparse_single(merge_target)
 
