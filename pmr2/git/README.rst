@@ -61,6 +61,13 @@ Initial page should render::
     >>> 'Workspace Summary' in result
     True
 
+Log page should also render::
+
+    >>> request = TestRequest()
+    >>> testpage = browser.WorkspaceShortlog(wkspc, request)
+    >>> testpage.__name__ = 'log'
+    >>> result = testpage()
+
 We can test this new empty workspace later by pushing some data to it.
 
 Rendering

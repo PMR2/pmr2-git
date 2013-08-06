@@ -102,12 +102,15 @@ class GitStorageUtility(StorageUtility):
         if remote_id.startswith('http'):
             root, frag = remote_id.rsplit('/', 1)
             client = HttpGitClient(root)
-            remote_refs = client.fetch(frag, local)
+            try:
+                remote_refs = client.fetch(frag, local)
+            except:
+                raise ValueError('error fetching from remote: %s' % remote_id)
         elif remote_id.startswith('/'):
             client = Repo(remote_id)
             remote_refs = client.fetch(local)
         else:
-            raise ValueError('remote not supported' % remote_id)
+            raise ValueError('remote not supported: %s' % remote_id)
 
         if branch in remote_refs:
             merge_target = remote_refs[branch]
@@ -476,13 +479,8 @@ class GitStorage(BaseStorage):
         start and branch are literally the same thing.
         """
 
-        try:
-            rev = self.repo.revparse_single(start).hex
-        except KeyError:
-            raise RevisionNotFoundError('revision %s not found' % start)
-
-        def _log():
-            for pos, commit in enumerate(self.repo.walk(rev, GIT_SORT_TIME)):
+        def _log(iterator):
+            for pos, commit in iterator:
                 if pos == count:
                     raise StopIteration
                 yield {
@@ -493,4 +491,19 @@ class GitStorage(BaseStorage):
                     'desc': commit.message
                 }
 
-        return _log()
+        if start is None:
+            # assumption.
+            start = 'HEAD'
+            try:
+                self.repo.revparse_single(start)
+            except KeyError:
+                return _log([])
+
+        try:
+            rev = self.repo.revparse_single(start).hex
+        except KeyError:
+            raise RevisionNotFoundError('revision %s not found' % start)
+
+        iterator = enumerate(self.repo.walk(rev, GIT_SORT_TIME))
+
+        return _log(iterator)
