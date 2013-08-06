@@ -81,6 +81,13 @@ will be generated instead::
     >>> 'is using a forbiddened protocol.' in browser.contents
     True
 
+    >>> target_url = self.pmr2.dirOf(simple1)
+    >>> browser.open(simple2_url + '/sync')
+    >>> browser.getControl(name='form.widgets.external_uri').value = target_url
+    >>> browser.getControl(name='form.buttons.syncWithTarget').click()
+    >>> 'is using a forbiddened protocol.' in browser.contents
+    True
+
 Ditto with using a path directly::
 
     >>> browser.open(simple2_url + '/sync')
