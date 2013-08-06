@@ -44,14 +44,6 @@ def rfc2822(committer):
 class GitStorageUtility(StorageUtility):
     title = 'Git'
 
-    def validateExternalURI(self, uri):
-        # hardcoding these as default valid for now.
-        validURI = ['http://', 'https://', 'git://']
-        for i in validURI:
-            if uri.startswith(i):
-                return True
-        return False
-
     def create(self, context):
         rp = zope.component.getUtility(IPMR2GlobalSettings).dirOf(context)
         repo = init_repository(join(rp, '.git'), bare=True)
@@ -111,9 +103,11 @@ class GitStorageUtility(StorageUtility):
             root, frag = remote_id.rsplit('/', 1)
             client = HttpGitClient(root)
             remote_refs = client.fetch(frag, local)
-        else:
-            client = Repo(identifier)
+        elif remote_id.startswith('/'):
+            client = Repo(remote_id)
             remote_refs = client.fetch(local)
+        else:
+            raise ValueError('remote not supported' % remote_id)
 
         if branch in remote_refs:
             merge_target = remote_refs[branch]
