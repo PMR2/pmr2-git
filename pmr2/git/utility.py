@@ -302,6 +302,7 @@ class GitStorage(BaseStorage):
                 self._commit.committer.name,
                 self._commit.committer.email,
             ),
+            'email': self._commit.committer.email,
             'permissions': '',
             'desc': self._commit.message,
             'node': self._commit.hex,
@@ -485,6 +486,7 @@ class GitStorage(BaseStorage):
                     raise StopIteration
                 yield {
                     'author': commit.committer.name,
+                    'email': self._commit.committer.email,
                     'date': rfc2822(commit.committer).date(),
                     'node': commit.hex,
                     'rev': commit.hex,

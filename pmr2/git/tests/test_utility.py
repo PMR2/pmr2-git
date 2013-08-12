@@ -251,6 +251,7 @@ class StorageTestCase(TestCase):
             'author': 'user1 <1@example.com>',
             # standalone files has no permission value in hgweb
             # 'permissions': '-rw-r--r--',
+            'email': '1@example.com',
             'permissions': '',
             'desc': 'added1',
             'node': self.revs[0],
@@ -359,6 +360,7 @@ class StorageTestCase(TestCase):
         result = storage.pathinfo('file1')
         answer = {
             'author': 'user1 <1@example.com>',
+            'email': '1@example.com',
             'permissions': '',
             'desc': 'added1',
             'node': self.revs[0],
@@ -405,6 +407,7 @@ class StorageTestCase(TestCase):
         result = storage.pathinfo(self.nested_name)
         answer = {
             'author': 'user3 <3@example.com>',
+            'email': '3@example.com',
             'permissions': '',
             'desc': 'added4',
             'node': self.revs[3],
