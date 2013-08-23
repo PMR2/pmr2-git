@@ -108,6 +108,7 @@ def archive_zip(repo, commit, rootname='git'):
 
         znfo = zipfile.ZipInfo('/'.join([prefix, path]), date_time)
         znfo.file_size = obj.size
+        znfo.compress_type = zipfile.ZIP_DEFLATED
         return znfo
 
     def _files(zf, tree, current_path=None):
@@ -120,7 +121,7 @@ def archive_zip(repo, commit, rootname='git'):
             # Not sure if zip file provide symlinks?
             if isinstance(obj, Blob):
                 znfo = make_zip_info(obj, name)
-                zf.writestr(znfo, obj.data, zipfile.ZIP_DEFLATED)
+                zf.writestr(znfo, obj.data)
             if isinstance(obj, Tree):
                 _files(zf, obj, name)
 
