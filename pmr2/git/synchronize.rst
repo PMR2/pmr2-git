@@ -103,4 +103,3 @@ Shutdown the test server::
     >>> for t in threading.enumerate():
     ...     if isinstance(t, QuietThread):
     ...         t._Thread__stop()
-    >>> import pdb;pdb.set_trace()
