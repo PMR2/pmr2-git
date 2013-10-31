@@ -42,7 +42,9 @@ def rfc2822(committer):
 
 
 class GitStorageUtility(StorageUtility):
-    title = 'Git'
+    title = u'Git'
+    command = u'git'
+    clone_verb = u'clone'
 
     def create(self, context):
         rp = zope.component.getUtility(IPMR2GlobalSettings).dirOf(context)
