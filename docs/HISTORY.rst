@@ -1,8 +1,8 @@
 Changelog
 =========
 
-0.1 - Unreleased
+0.1 - 2014-04-03
 ----------------
 
-* Initial release
+* Initial release of the git backend for PMR.
 
