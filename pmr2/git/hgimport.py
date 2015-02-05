@@ -16,9 +16,36 @@ from subprocess import Popen
 from subprocess import PIPE
 
 import zope.component
+import zope.interface
+from OFS.interfaces import ITraversable
+
 from pmr2.app.workspace.interfaces import IStorage
 from pmr2.app.workspace.interfaces import IStorageUtility
+from pmr2.app.workspace.interfaces import IWorkspace
 from pmr2.app.settings.interfaces import IPMR2GlobalSettings
+
+
+@zope.interface.implementer(IWorkspace, ITraversable)
+class EmbeddedWorkspace(object):
+
+    def __init__(self, workspace, subpath, storage=u'mercurial'):
+        self.workspace = workspace
+        self.subpath = subpath
+        self.storage = storage
+
+    def getPhysicalPath(self):
+        return (self.workspace.getPhysicalPath() +
+            tuple(self.subpath.split('/')))
+
+
+def get_hgsubs(hg_storage):
+    try:
+        subrepos = hg_storage.file('.hgsub')
+    except:
+        return []
+
+    return [(x.strip(), y.strip()) for x, y in [
+        i.split('=', 1) for i in hg_storage.file('.hgsub').splitlines()]]
 
 
 class Migrator(object):
@@ -52,7 +79,7 @@ class Migrator(object):
         self.env.update(env)
         self.hg_fast_export = hg_fast_export
 
-    def hg_to_git(self, workspace):
+    def hg_to_git(self, workspace, set_remote=False, rename_remote=None):
         if workspace.storage != u'mercurial':
             raise TypeError('%s is not a mercurial repo' % str(workspace))
 
@@ -69,14 +96,43 @@ class Migrator(object):
             cwd=storage_path, env=self.env, stdout=PIPE, stderr=PIPE)
         self.last_results = p.communicate()
         if p.returncode != 0:
-            raise RuntimeError('Conversion failed, most likely due to '
-                'submodules which needs to be manually handled.')
+            hgsubs = get_hgsubs(hg_storage)
+            if not hgsubs:
+                raise RuntimeError('Conversion failed with no subrepos found.')
+            hg_up = Popen(['hg', 'up', '-C'],
+                cwd=storage_path, stdout=PIPE, stderr=PIPE)
+            hg_up.communicate()
+
+            if hg_up.returncode != 0:
+                raise RuntimeError('hg update failed on subrepo')
+
+            for subpath, url in hgsubs:
+                embedded = EmbeddedWorkspace(workspace, subpath)
+                self.hg_to_git(embedded, True, rename_remote)
+
+            p = Popen([self.hg_fast_export, '-r', '.'],
+                cwd=storage_path, env=self.env, stdout=PIPE, stderr=PIPE)
+            self.last_results = p.communicate()
+            if p.returncode != 0:
+                raise RuntimeError(
+                    'Conversion failed despite subrepo handling.')
         
         workspace.storage = u'git'
 
+        if set_remote:
+            remote = [v for s, n, v in hg_storage.storage._ui.walkconfig()
+                if s == 'paths' and n == 'default']
+
+            if callable(rename_remote):
+                remote = rename_remote(remote)
+
+            pr = Popen(['git', 'remote', 'add', 'origin'] + remote,
+                cwd=storage_path, stdout=PIPE, stderr=PIPE)
+            pr.communicate()
+
         # need to commit the changes to effect them.
 
-    def batch_migrate(self, portal):
+    def batch_migrate(self, portal, rename_remote=None):
         results = portal.portal_catalog(portal_type='Workspace')
         # for every workspace in the result from the thing
         # trap exception
@@ -88,7 +144,7 @@ class Migrator(object):
         for b in results:
             workspace = b.getObject()
             try:
-                self.hg_to_git(workspace)
+                self.hg_to_git(workspace, rename_remote=rename_remote)
             except TypeError:
                 continue
             except RuntimeError:
