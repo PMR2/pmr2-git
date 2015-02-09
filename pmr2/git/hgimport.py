@@ -25,6 +25,16 @@ from pmr2.app.workspace.interfaces import IWorkspace
 from pmr2.app.settings.interfaces import IPMR2GlobalSettings
 
 
+def get_hgsubs(hg_storage):
+    try:
+        subrepos = hg_storage.file('.hgsub')
+    except:
+        return []
+
+    return [(x.strip(), y.strip()) for x, y in [
+        i.split('=', 1) for i in hg_storage.file('.hgsub').splitlines()]]
+
+
 @zope.interface.implementer(IWorkspace, ITraversable)
 class EmbeddedWorkspace(object):
 
@@ -36,16 +46,6 @@ class EmbeddedWorkspace(object):
     def getPhysicalPath(self):
         return (self.workspace.getPhysicalPath() +
             tuple(self.subpath.split('/')))
-
-
-def get_hgsubs(hg_storage):
-    try:
-        subrepos = hg_storage.file('.hgsub')
-    except:
-        return []
-
-    return [(x.strip(), y.strip()) for x, y in [
-        i.split('=', 1) for i in hg_storage.file('.hgsub').splitlines()]]
 
 
 class Migrator(object):
