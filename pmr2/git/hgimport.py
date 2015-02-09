@@ -65,11 +65,23 @@ class Migrator(object):
         from that subpath and that it needs to be invoked using the
         python binary in the virtual env created for it.
 
-        Migration is simply
+        Migration for an individual workspace is simply
 
         >>> m.hg_to_git(app.portal.workspace.example)
         >>> import transaction
         >>> transaction.commit()
+
+        Alternatively run the batch migration
+
+        >>> success, failure = m.batch_migrate(app.pmr, rename_remote)
+
+        All the paths to the success and failed migrations done on
+        workspaces be returned in a tuple.
+
+        >>> len(failure)
+        1
+        >>> failure[0]
+        '/portal/workspace/failed'
         """
 
         # environment variables.
@@ -134,10 +146,6 @@ class Migrator(object):
 
     def batch_migrate(self, portal, rename_remote=None):
         results = portal.portal_catalog(portal_type='Workspace')
-        # for every workspace in the result from the thing
-        # trap exception
-        # record the failures.
-
         fail = []
         success = []
 
