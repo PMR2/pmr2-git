@@ -12,6 +12,8 @@ shell and no front-end should be built for this.
 Also this is written as a one-off migration tool. YMMV.
 """
 
+from os.path import join
+
 from subprocess import Popen
 from subprocess import PIPE
 
@@ -22,6 +24,7 @@ from OFS.interfaces import ITraversable
 from pmr2.app.workspace.interfaces import IStorage
 from pmr2.app.workspace.interfaces import IStorageUtility
 from pmr2.app.workspace.interfaces import IWorkspace
+from pmr2.app.exposure.interfaces import IExposureSourceAdapter
 from pmr2.app.settings.interfaces import IPMR2GlobalSettings
 
 
@@ -33,6 +36,17 @@ def get_hgsubs(hg_storage):
 
     return [(x.strip(), y.strip()) for x, y in [
         i.split('=', 1) for i in hg_storage.file('.hgsub').splitlines()]]
+
+def load_hg2git_revs(workspace):
+    if workspace.storage != 'git':
+        return
+
+    storage = zope.component.getAdapter(workspace, IStorage)
+
+    with open(join(storage.repo.path, 'hg2git-revisions')) as fd:
+        result = {old: new for old, new in
+            (line[1:].split() for line in fd.readlines())}
+    return result
 
 
 @zope.interface.implementer(IWorkspace, ITraversable)
@@ -161,3 +175,31 @@ class Migrator(object):
             success.append(b.getPath())
 
         return success, fail
+
+    def exposure_remap(self, exposure):
+        esa = zope.component.getAdapter(exposure, IExposureSourceAdapter)
+        exposure, workspace, _ = esa.source()
+
+        # this can fail if this was not a migrated repo
+        mapping = load_hg2git_revs(workspace)
+
+        # this can fail too if it was already done...
+        new_commit_id = mapping[exposure.commit_id]
+
+        # since the field is of unicode type...
+        exposure.commit_id = unicode(new_commit_id)
+
+    def batch_exposure(self, portal):
+        results = portal.portal_catalog(portal_type='Exposure')
+        success = []
+        failure = []
+        for b in results:
+            exposure = b.getObject()
+            try:
+                self.exposure_remap(exposure)
+            except:
+                failure.append(b.getPath())
+                continue
+
+            success.append(b.getPath())
+        return success, failure
