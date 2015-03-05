@@ -13,6 +13,7 @@ Also this is written as a one-off migration tool. YMMV.
 """
 
 from os.path import join
+import logging
 
 from subprocess import Popen
 from subprocess import PIPE
@@ -21,11 +22,14 @@ import zope.component
 import zope.interface
 from OFS.interfaces import ITraversable
 
+from pmr2.app.workspace.exceptions import PathInvalidError
 from pmr2.app.workspace.interfaces import IStorage
 from pmr2.app.workspace.interfaces import IStorageUtility
 from pmr2.app.workspace.interfaces import IWorkspace
 from pmr2.app.exposure.interfaces import IExposureSourceAdapter
 from pmr2.app.settings.interfaces import IPMR2GlobalSettings
+
+logger = logging.getLogger(__name__)
 
 
 def get_hgsubs(hg_storage):
@@ -109,7 +113,13 @@ class Migrator(object):
         if workspace.storage != u'mercurial':
             raise TypeError('%s is not a mercurial repo' % str(workspace))
 
-        hg_storage = zope.component.getAdapter(workspace, IStorage)
+        try:
+            hg_storage = zope.component.getAdapter(workspace, IStorage)
+        except PathInvalidError:
+            logger.error('invalid workspace: ' + 
+                '/'.join(workspace.getPhysicalPath()))
+            raise TypeError('%s has no underlying mercurial' % str(workspace))
+
         storage_path = zope.component.getUtility(IPMR2GlobalSettings
             ).dirOf(workspace)
 
