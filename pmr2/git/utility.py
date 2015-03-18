@@ -232,8 +232,12 @@ class GitStorage(BaseStorage):
         try:
             self.__commit = self.repo.revparse_single(rev)
         except KeyError:
-            # probably a new repo.
-            self.__commit = None
+            if rev == 'HEAD':
+                # probably a new repo.
+                self.__commit = None
+                return
+            raise RevisionNotFoundError('revision %s not found' % rev)
+            # otherwise a RevisionNotFoundError should be raised.
 
     # Unit tests would be useful here, even if this class will only
     # produce output for the browser classes.

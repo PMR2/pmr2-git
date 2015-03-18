@@ -192,11 +192,24 @@ class StorageTestCase(TestCase):
         self.assertEqual(storage.shortrev, None)
         self.assertEqual(storage.rev, None)
 
+    def test_012_storage_checkout_bad(self):
+        empty = join(self.testdir, 'empty')
+        repo = init_repository(join(empty, '.git'), bare=True)
+        workspace = DummyWorkspace(empty)
+        storage = GitStorage(workspace)
+        self.assertRaises(RevisionNotFoundError,
+            storage.checkout, 'some_bad_rev')
+
     def test_101_storage_checkout(self):
         storage = GitStorage(self.workspace)
         storage.checkout(self.revs[0])
         result = storage.files()
         self.assertEqual(result, ['file1', 'file2',])
+
+    def test_102_storage_checkout_bad(self):
+        storage = GitStorage(self.workspace)
+        self.assertRaises(RevisionNotFoundError,
+            storage.checkout, 'some_bad_rev')
 
     def test_200_storage_log(self):
         storage = GitStorage(self.workspace)
