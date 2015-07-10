@@ -35,7 +35,7 @@
       for=".interfaces.IGitWorkspace"
       name="git-receive-pack"
       class=".browser.GitProtocol"
-      permission="pmr2.app.security.HgPush"
+      permission="pmr2.app.security.Push"
       />
 
 </configure>
