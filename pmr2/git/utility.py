@@ -10,6 +10,8 @@ from dateutil.tz import tzoffset
 import zope.component
 import zope.interface
 
+from magic import Magic
+
 from pygit2 import Signature
 from pygit2 import Repository
 from pygit2 import Tree
@@ -34,6 +36,8 @@ from .interfaces import IGitWorkspace
 GIT_MODULE_FILE = '.gitmodules'
 
 logger = logging.getLogger('pmr2.git')
+
+magic = Magic(mime=True)
 
 
 def rfc2822(committer):
@@ -317,8 +321,8 @@ class GitStorage(BaseStorage):
             'size': blob.size,
             'basename': path.split('/')[-1],
             'file': path,
-            'mimetype': lambda: mimetypes.guess_type(blob.read_raw())[0]
-                or 'application/octet-stream',
+            'mimetype': lambda: mimetypes.guess_type(path)[0]
+                or magic.from_buffer(blob.read_raw()),
             'contents': blob.read_raw,
             'baseview': 'file',
             'fullpath': None,

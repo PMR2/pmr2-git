@@ -68,7 +68,7 @@ class TestCase(unittest.TestCase):
 
         self.path = dirname(__file__)
 
-        self.filelist = ['file1', 'file2', 'file3',]
+        self.filelist = ['file1', 'file2', 'file3', 'image.png']
         self.nested_name = 'nested/deep/dir/file'
         self.nested_file = 'This is\n\na deeply nested file\n'
         self.files = [open(join(self.path, i)).read() for i in self.filelist]
@@ -106,6 +106,8 @@ class TestCase(unittest.TestCase):
         tbder.insert('file2', repo.create_blob(self.files[1]),
             GIT_FILEMODE_BLOB)
         tbder.insert('file3', repo.create_blob(self.files[0]),
+            GIT_FILEMODE_BLOB)
+        tbder.insert('image.png', repo.create_blob(self.files[3]),
             GIT_FILEMODE_BLOB)
         commit = repo.create_commit('refs/heads/master',
             Signature('user3', '3@example.com', int(time()), 0),
@@ -290,14 +292,14 @@ class StorageTestCase(TestCase):
         storage.checkout(self.revs[3])
         result = list(storage.listdir(''))
         answer_table = {
-            'basename': ['nested', 'file1', 'file2', 'file3'],
-            'contenttype': ['folder', 'file', 'file', 'file'],
-            'file': ['nested', 'file1', 'file2', 'file3'],
-            'node': [self.revs[3], self.revs[3], self.revs[3], self.revs[3]],
+            'basename': ['nested', 'file1', 'file2', 'file3', 'image.png'],
+            'contenttype': ['folder', 'file',  'file', 'file', 'file'],
+            'file': ['nested', 'file1', 'file2', 'file3', 'image.png'],
+            'node': [self.revs[3]] * 5,
             'permissions': ['drwxr-xr-x', '-rw-r--r--', '-rw-r--r--',
-                    '-rw-r--r--'],
+                            '-rw-r--r--', '-rw-r--r--'],
             'size': ['', str(len(self.files[1])), str(len(self.files[1])),
-                    str(len(self.files[0])),],
+                    str(len(self.files[0])), str(len(self.files[3])),],
         }
         self.assertEqualAnswerTable(answer_table, result)
 
@@ -367,7 +369,7 @@ class StorageTestCase(TestCase):
                           self.nested_name + 'asdf')
         self.assertRaises(PathNotFoundError, storage.listdir, 'nested/not')
 
-    def test_600_pathinfo(self):
+    def test_600_pathinfo_magic(self):
         storage = GitStorage(self.workspace)
         storage.checkout(self.revs[0])
         result = storage.pathinfo('file1')
@@ -389,8 +391,36 @@ class StorageTestCase(TestCase):
             'external': None,
         }
         self.assertEqual(answer, result)
-        # TODO
-        #self.assertTrue(result['mimetype']().startswith('text/plain'))
+        # this relies on magic because no filename extension, mimetype
+        # guess_type does not return anything for that.
+        self.assertTrue(result['mimetype']().startswith('text/plain'))
+
+    def test_600_pathinfo_magic(self):
+        self.maxDiff = 1022
+        storage = GitStorage(self.workspace)
+        storage.checkout(self.revs[2])
+        result = storage.pathinfo('image.png')
+        answer = {
+            'author': 'user3 <3@example.com>',
+            'email': '3@example.com',
+            'permissions': '',
+            'desc': 'added3',
+            'node': self.revs[2],
+            'date': result['date'],
+            'size': len(self.files[3]),
+            'basename': 'image.png',
+            'file': 'image.png',
+            'mimetype': result['mimetype'],
+            'contents': result['contents'],
+            'baseview': 'file',
+            'fullpath': None,
+            'contenttype': None,
+            'external': None,
+        }
+        self.assertEqual(answer, result)
+        # this relies directly on filename extension of path as it's
+        # checked first.
+        self.assertEqual(result['mimetype'](), 'image/png')
 
     def test_601_pathinfo_nested_dir(self):
         storage = GitStorage(self.workspace)
