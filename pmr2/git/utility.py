@@ -322,7 +322,7 @@ class GitStorage(BaseStorage):
             'basename': path.split('/')[-1],
             'file': path,
             'mimetype': lambda: mimetypes.guess_type(path)[0]
-                or magic.from_buffer(blob.read_raw()),
+                or magic.from_buffer(blob.read_raw()[:1000]),
             'contents': blob.read_raw,
             'baseview': 'file',
             'fullpath': None,
