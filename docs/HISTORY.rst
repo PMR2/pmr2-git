@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.3 - Unreleased
+0.3 - 2016-03-08
 ----------------
 
 * Correction to the mimetype reporting to use the path where it's done,
