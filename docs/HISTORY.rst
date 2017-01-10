@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.3.1 - 2017-01-10
+------------------
+
+* Minor correction to testing to be compatible with some upstream fixes.
+
 0.3 - 2016-03-08
 ----------------
 
