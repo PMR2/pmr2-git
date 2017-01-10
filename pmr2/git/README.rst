@@ -214,6 +214,7 @@ fork button::
     >>> simple1 = self.portal.workspace.simple1
     >>> simple1_storage = zope.component.getAdapter(simple1, IStorage)
     >>> request = TestRequest(form={
+    ...     'form.widgets.id': u'simple1',  # normally autofilled
     ...     'form.buttons.fork': 1,
     ... })
     >>> form = browser.WorkspaceForkForm(simple1, request)
