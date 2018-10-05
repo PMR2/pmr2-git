@@ -351,6 +351,14 @@ class GitStorage(BaseStorage):
         results = _files(self._commit.tree)
         return results
 
+    def roots(self, rev=None):
+        if rev is not None:
+            commit = self.repo.revparse_single(rev)
+        else:
+            commit = self._commit
+        walker = self.repo.walk(commit.oid, 0)
+        return [c.oid.hex for c in walker if not c.parents]
+
     def listdir(self, path):
         def strippath(_path):
             frags = path.split('/')

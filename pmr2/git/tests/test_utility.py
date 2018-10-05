@@ -287,6 +287,21 @@ class StorageTestCase(TestCase):
         self.assertEqual(result['contents'](), 'This is a test file.\n')
         self.assertTrue(result['mimetype']())
 
+    def test_410_storage_roots(self):
+        storage = GitStorage(self.repodata)
+        roots = storage.roots()
+        self.assertEqual(roots, ['42a9021e2e4df151c3255b5429899f421b0c3431'])
+
+    def test_411_storage_roots_rev(self):
+        storage = GitStorage(self.simple1)
+        roots = storage.roots('c90c2791cbb1eb5b06e76f9a8ebafaf7aeeb6f98')
+        self.assertEqual(roots, ['859d37af12a86709773931ea4decc2fa12971ff7'])
+
+    def test_412_storage_roots_rev_missing_rev(self):
+        storage = GitStorage(self.simple1)
+        with self.assertRaises(KeyError):
+            storage.roots('nosuchrev')
+
     def test_500_listdir_root(self):
         storage = GitStorage(self.workspace)
         storage.checkout(self.revs[3])
