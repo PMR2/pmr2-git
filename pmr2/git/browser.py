@@ -7,6 +7,9 @@ from AccessControl import Unauthorized
 from zExceptions import Forbidden, BadRequest
 from Products.CMFCore.utils import getToolByName
 from zope.publisher.interfaces import NotFound
+from plone.protect.interfaces import IDisableCSRFProtection
+from zope.interface import alsoProvides
+from zope.event import notify
 
 from dulwich.server import Backend, DEFAULT_HANDLERS
 from dulwich.repo import Repo
@@ -18,8 +21,11 @@ from dulwich.web import HTTP_OK, HTTP_NOT_FOUND, HTTP_FORBIDDEN, HTTP_ERROR
 
 from pmr2.z3cform.page import TraversePage
 from pmr2.app.settings.interfaces import IPMR2GlobalSettings
+from pmr2.app.workspace.event import Push
 
 from pmr2.git.utility import GitStorage
+
+push_patt = re.compile('/git-receive-pack$')
 
 
 class ZopeHTTPGitRequest(HTTPGitRequest):
@@ -69,7 +75,7 @@ class GitProtocol(TraversePage):
             get_idx_file,
 
         ('POST', re.compile('/git-upload-pack$')): handle_service_request,
-        ('POST', re.compile('/git-receive-pack$')): handle_service_request,
+        ('POST', push_patt): handle_service_request,
     }
 
     def update(self):
@@ -123,6 +129,10 @@ class GitProtocol(TraversePage):
 
         if handler is None:
             raise NotFound(self.context, self.pathinfo)
+
+        if self.request.method == 'POST' and spath is push_patt:
+            alsoProvides(self.request, IDisableCSRFProtection)
+            notify(Push(self.context))
 
         self.handler = handler(req, backend, match)
         self.gitreq = req

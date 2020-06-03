@@ -5,6 +5,7 @@ Changelog
 ------------------
 
 * Support the roots API call.
+* Ensure the Push events are fired.
 
 0.3.1 - 2017-01-10
 ------------------
