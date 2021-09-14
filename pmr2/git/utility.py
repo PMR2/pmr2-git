@@ -528,3 +528,11 @@ class GitStorage(BaseStorage):
         iterator = enumerate(self.repo.walk(rev, GIT_SORT_TIME))
 
         return _log(iterator)
+
+    def clonecmd(self):
+        try:
+            info = self.file('.gitmodules')
+        except PathInvalidError:
+            return ''
+
+        return 'git clone --recursive %s' % self.context.absolute_url()
