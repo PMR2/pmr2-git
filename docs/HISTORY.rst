@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.5.0 - 2021-09-14
+------------------
+
+* Support for custom clone command, for git repos with submodules.
+
 0.4.0 - 2021-07-01
 ------------------
 
