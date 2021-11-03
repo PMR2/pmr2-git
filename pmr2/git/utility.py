@@ -239,8 +239,12 @@ class GitStorage(BaseStorage):
             self.__commit = self.repo.revparse_single(rev)
         except KeyError:
             if rev == 'HEAD':
-                # probably a new repo.
-                self.__commit = None
+                try:
+                    # fallback to the main branch
+                    self.__commit = self.repo.revparse_single('main')
+                except KeyError:
+                    # probably a new repo.
+                    self.__commit = None
                 return
             raise RevisionNotFoundError('revision %s not found' % rev)
             # otherwise a RevisionNotFoundError should be raised.
