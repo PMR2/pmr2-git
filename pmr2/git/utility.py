@@ -14,14 +14,15 @@ from magic import Magic
 
 from pygit2 import Signature
 from pygit2 import Repository
-from pygit2 import Tree
-from pygit2 import Blob
-from pygit2 import Tag
-from pygit2 import Commit
+from dulwich.objects import Tree
+from dulwich.objects import Blob
+from dulwich.objects import Tag
+from dulwich.objects import Commit
 from pygit2 import discover_repository, init_repository
 from pygit2 import GIT_SORT_TIME
 
 import dulwich.objects
+from dulwich.errors import NotGitRepository
 from dulwich.repo import Repo
 from dulwich.client import HttpGitClient
 
@@ -41,9 +42,8 @@ logger = logging.getLogger('pmr2.git')
 magic = Magic(mime=True)
 
 
-def rfc2822(committer):
-    return datetime.fromtimestamp(committer.time,
-        tzoffset(None, committer.offset * 60))
+def rfc2822(time, offset):
+    return datetime.fromtimestamp(time, tzoffset(None, offset))
 
 
 class GitStorageUtility(StorageUtility):
@@ -190,9 +190,8 @@ class GitStorage(BaseStorage):
         self.context = context
 
         try:
-            self.repo = Repository(discover_repository(rp))
-        except KeyError:
-            # discover_repository may have failed.
+            self.repo = Repo(rp)
+        except NotGitRepository:
             raise PathInvalidError('repository does not exist at path')
 
         self.checkout('HEAD')
@@ -209,7 +208,7 @@ class GitStorage(BaseStorage):
     @property
     def rev(self):
         if self.__commit:
-            return self.__commit.hex
+            return self.__commit.id
         return None
 
     @property
@@ -227,6 +226,20 @@ class GitStorage(BaseStorage):
     def basename(self, name):
         return name.split('/')[-1]
 
+    def revparse_single(self, rev):
+        try:
+            branches = self.repo.refs.as_dict('refs/heads')
+            if rev in branches:
+                rev = branches[rev]
+            if rev == 'HEAD':
+                return self.repo.get_object(self.repo.head())
+            return self.repo.get_object(rev)
+        except AssertionError:
+            # fallback to use the real version
+            repo = Repository(discover_repository(self.repo.path))
+            revision = repo.revparse_single(rev).oid.hex
+            return self.repo.get_object(revision)
+
     def checkout(self, rev=None):
         # All the bad practices I did when building pmr2.mercurial will
         # be carried into here until a cleaner method is provided.
@@ -236,7 +249,7 @@ class GitStorage(BaseStorage):
 
         self._lastcheckout = rev
         try:
-            self.__commit = self.repo.revparse_single(rev)
+            self.__commit = self.revparse_single(rev)
         except KeyError:
             if rev == 'HEAD':
                 # probably a new repo.
@@ -256,7 +269,7 @@ class GitStorage(BaseStorage):
             # special case
             return self._get_empty_root()
 
-        root = self._commit.tree
+        root = self.repo.get_object(self._commit.tree)
         try:
             breadcrumbs = []
             fragments = list(reversed(path.split('/')))
@@ -267,8 +280,11 @@ class GitStorage(BaseStorage):
                 if not fragment == '':
                     # no empty string entries, also skips over '//' and
                     # leaves the final node (if directory) as the tree.
-                    oid = node[fragment].oid
-                    node = self.repo.get(oid)
+                    oid = node[fragment][-1]
+                    try:
+                        node = self.repo.get_object(oid)
+                    except (AssertionError, KeyError) as e:
+                        node = None
                 breadcrumbs.append(fragment)
                 if node is None:
                     # strange.  Looks like it's either submodules only
@@ -277,8 +293,8 @@ class GitStorage(BaseStorage):
                     # file.
                     if not cls == Blob:
                         # If we want a file, forget it.
-                        submods = parse_gitmodules(self.repo.get(
-                            root[GIT_MODULE_FILE].oid).data)
+                        submods = parse_gitmodules(self.repo.get_object(
+                            root[GIT_MODULE_FILE][-1]).data)
                         submod = submods.get('/'.join(breadcrumbs))
                         if submod:
                             fragments.reverse()
@@ -286,7 +302,7 @@ class GitStorage(BaseStorage):
                                 '': '_subrepo',
                                 'location': submod,
                                 'path': '/'.join(fragments),
-                                'rev': oid.hex,
+                                'rev': oid,
                             }
                     raise PathNotDirError('path not dir')
 
@@ -310,21 +326,19 @@ class GitStorage(BaseStorage):
         if blob is None:
             blob = self._get_obj(path, Blob)
         return {
-            'author': '%s <%s>' % (
-                self._commit.committer.name,
-                self._commit.committer.email,
-            ),
-            'email': self._commit.committer.email,
+            'author': self._commit.committer,
+            'email': self._commit.committer.rsplit('<')[-1][:-1],
             'permissions': '',
             'desc': self._commit.message,
-            'node': self._commit.hex,
-            'date': rfc2822(self._commit.committer),
-            'size': blob.size,
+            'node': self._commit.id,
+            'date': rfc2822(
+                self._commit.commit_time, self._commit.commit_timezone),
+            'size': blob.raw_length(),
             'basename': path.split('/')[-1],
             'file': path,
             'mimetype': lambda: mimetypes.guess_type(path)[0]
-                or magic.from_buffer(blob.read_raw()[:1000]),
-            'contents': blob.read_raw,
+                or magic.from_buffer(blob.as_raw_string()[:1000]),
+            'contents': blob.as_raw_string,
             'baseview': 'file',
             'fullpath': None,
             'contenttype': None,
@@ -332,9 +346,6 @@ class GitStorage(BaseStorage):
         }
 
     def files(self):
-        repo = Repo(
-            zope.component.getUtility(IPMR2GlobalSettings).dirOf(self.context))
-
         def _files(tree, current_path=None):
             results = []
             for node in tree.items():
@@ -344,7 +355,7 @@ class GitStorage(BaseStorage):
                     name = node.path
 
                 try:
-                    obj = repo.get_object(node.sha)
+                    obj = self.repo.get_object(node.sha)
                 except KeyError:
                     # assume this is a submodule type
                     continue
@@ -357,19 +368,19 @@ class GitStorage(BaseStorage):
 
         if not self._commit:
             return []
-        commit = repo.get_object(self._commit.hex)
-        tree = repo.get_object(commit.tree)
+
+        tree = self.repo.get_object(self._commit.tree)
         results = _files(tree)
 
         return results
 
     def roots(self, rev=None):
         if rev is not None:
-            commit = self.repo.revparse_single(rev)
+            commit = self.revparse_single(rev)
         else:
             commit = self._commit
-        walker = self.repo.walk(commit.oid, 0)
-        return [c.oid.hex for c in walker if not c.parents]
+        walker = self.repo.get_walker(commit.id)
+        return [e.commit.id for e in walker if not e.commit.parents]
 
     def listdir(self, path):
         def strippath(_path):
@@ -385,7 +396,7 @@ class GitStorage(BaseStorage):
         if path:
             tree = self._get_obj(path, Tree)
         else:
-            tree = self._commit.tree
+            tree = self.repo.get_object(self._commit.tree)
 
         def _listdir():
             if path:
@@ -406,12 +417,15 @@ class GitStorage(BaseStorage):
             # the commit objects found here.
 
             # return trees first:
-            for entry in tree:
-                node = self.repo.get(entry.oid)
-                if node is not None:
+            for entry in tree.items():
+                try:
+                    node = self.repo.get_object(entry.sha)
+                except KeyError:
+                    pass
+                else:
                     continue
 
-                fullpath = path and '%s/%s' % (path, entry.name) or entry.name
+                fullpath = path and '%s/%s' % (path, entry.path) or entry.path
 
                 yield self.format(**{
                     'permissions': 'lrwxrwxrwx',
@@ -425,12 +439,15 @@ class GitStorage(BaseStorage):
                 })
 
             # return trees first:
-            for entry in tree:
-                node = self.repo.get(entry.oid)
-                if not isinstance(node, Tree):
+            for entry in tree.items():
+                try:
+                    node = self.repo.get_object(entry.sha)
+                    if not isinstance(node, Tree):
+                        continue
+                except KeyError:
                     continue
 
-                fullpath = path and '%s/%s' % (path, entry.name) or entry.name
+                fullpath = path and '%s/%s' % (path, entry.path) or entry.path
 
                 yield self.format(**{
                     'permissions': 'drwxr-xr-x',
@@ -444,22 +461,27 @@ class GitStorage(BaseStorage):
                 })
 
             # then return files
-            for entry in tree:
-                node = self.repo.get(entry.oid)
-                if not isinstance(node, Blob):
+            for entry in tree.items():
+                try:
+                    node = self.repo.get_object(entry.sha)
+                    if not isinstance(node, Blob):
+                        continue
+                except KeyError:
                     continue
 
-                fullpath = path and '%s/%s' % (path, entry.name) or entry.name
+                fullpath = path and '%s/%s' % (path, entry.path) or entry.path
 
                 yield self.format(**{
                     'permissions': '-rw-r--r--',
                     'contenttype': 'file',
                     'node': self.rev,
-                    'date': rfc2822(self._commit.committer).date(),
-                    'size': str(node.size),
+                    'date': rfc2822(
+                        self._commit.commit_time, self._commit.commit_timezone
+                    ),
+                    'size': str(node.raw_length()),
                     'path': fullpath,
                     'desc': self._commit.message,
-                    'contents': lambda: node.read_raw(),
+                    'contents': node.as_raw_string,
                 })
 
         return _listdir()
@@ -512,15 +534,20 @@ class GitStorage(BaseStorage):
         """
 
         def _log(iterator):
-            for pos, commit in iterator:
+            for pos, walker_entry in iterator:
                 if pos == count:
                     raise StopIteration
+                commit = walker_entry.commit
+                name, email = self._commit.committer.rsplit('<', 1)
+                email = email[:-1]
                 yield {
-                    'author': commit.committer.name,
-                    'email': self._commit.committer.email,
-                    'date': rfc2822(commit.committer).date(),
-                    'node': commit.hex,
-                    'rev': commit.hex,
+                    'author': name,
+                    'email': email,
+                    'date': rfc2822(
+                        commit.commit_time, commit.commit_timezone
+                    ),
+                    'node': commit.id,
+                    'rev': commit.id,
                     'desc': commit.message
                 }
 
@@ -528,16 +555,16 @@ class GitStorage(BaseStorage):
             # assumption.
             start = 'HEAD'
             try:
-                self.repo.revparse_single(start)
+                self.revparse_single(start)
             except KeyError:
                 return _log([])
 
         try:
-            rev = self.repo.revparse_single(start).hex
+            rev = self.revparse_single(start).id
         except KeyError:
             raise RevisionNotFoundError('revision %s not found' % start)
 
-        iterator = enumerate(self.repo.walk(rev, GIT_SORT_TIME))
+        iterator = enumerate(self.repo.get_walker([rev]))
 
         return _log(iterator)
 

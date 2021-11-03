@@ -3,8 +3,8 @@ from time import gmtime
 import tarfile
 import zipfile
 
-from pygit2 import Tree
-from pygit2 import Blob
+from dulwich.objects import Tree
+from dulwich.objects import Blob
 
 def parse_gitmodules(raw):
     """
@@ -54,7 +54,7 @@ def archive_tgz(repo, commit, rootname='git'):
     Return an archive from a commit.
     """
 
-    prefix = '%s-%s' % (rootname, commit.oid.hex[:12])
+    prefix = '%s-%s' % (rootname, commit.id[:12])
 
     def make_tar_info(obj, path):
         """
@@ -64,19 +64,19 @@ def archive_tgz(repo, commit, rootname='git'):
         """
 
         tnfo = tarfile.TarInfo('/'.join([prefix, path]))
-        tnfo.size = obj.size
-        tnfo.mtime = commit.committer.time
+        tnfo.size = obj.raw_length()
+        tnfo.mtime = commit.commit_time
         tnfo.uname = 'root'
         tnfo.gname = 'root'
         return tnfo
 
     def _files(tf, tree, current_path=None):
-        for node in tree:
+        for node in tree.items():
             if current_path:
-                name = '/'.join([current_path, node.name])
+                name = '/'.join([current_path, node.path])
             else:
-                name = node.name
-            obj = repo.get(node.oid)
+                name = node.path
+            obj = repo.get_object(node.sha)
             # XXX todo: support symlinks.
             if isinstance(obj, Blob):
                 tnfo = make_tar_info(obj, name)
@@ -86,7 +86,7 @@ def archive_tgz(repo, commit, rootname='git'):
 
     stream = StringIO()
     tf = tarfile.TarFile.open(fileobj=stream, mode='w|gz')
-    _files(tf, commit.tree)
+    _files(tf, repo.get_object(commit.tree))
     tf.close()
 
     return stream.getvalue()
@@ -96,8 +96,8 @@ def archive_zip(repo, commit, rootname='git'):
     Return an archive from a commit.
     """
 
-    prefix = '%s-%s' % (rootname, commit.oid.hex[:12])
-    date_time = tuple(gmtime(commit.committer.time))[:6]
+    prefix = '%s-%s' % (rootname, commit.id[:12])
+    date_time = tuple(gmtime(commit.commit_time))[:6]
 
     def make_zip_info(obj, path):
         """
@@ -107,17 +107,17 @@ def archive_zip(repo, commit, rootname='git'):
         """
 
         znfo = zipfile.ZipInfo('/'.join([prefix, path]), date_time)
-        znfo.file_size = obj.size
+        znfo.file_size = obj.raw_length()
         znfo.compress_type = zipfile.ZIP_DEFLATED
         return znfo
 
     def _files(zf, tree, current_path=None):
-        for node in tree:
+        for node in tree.items():
             if current_path:
-                name = '/'.join([current_path, node.name])
+                name = '/'.join([current_path, node.path])
             else:
-                name = node.name
-            obj = repo.get(node.oid)
+                name = node.path
+            obj = repo.get_object(node.sha)
             # Not sure if zip file provide symlinks?
             if isinstance(obj, Blob):
                 znfo = make_zip_info(obj, name)
@@ -127,7 +127,7 @@ def archive_zip(repo, commit, rootname='git'):
 
     stream = StringIO()
     tf = zipfile.ZipFile(stream, mode='w')
-    _files(tf, commit.tree)
+    _files(tf, repo.get_object(commit.tree))
     tf.close()
 
     return stream.getvalue()
