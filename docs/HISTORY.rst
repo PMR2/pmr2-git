@@ -1,6 +1,14 @@
 Changelog
 =========
 
+0.6.0 - 2021-??-??
+------------------
+
+* Partially mitigate the dangling opened file issue with the usage
+  through the vocabulary factory by using dulwich to get the list of
+  files.
+* Support the default main branch as master branch is being deprecated.
+
 0.5.0 - 2021-09-14
 ------------------
 
