@@ -21,6 +21,7 @@ from pygit2 import Commit
 from pygit2 import discover_repository, init_repository
 from pygit2 import GIT_SORT_TIME
 
+import dulwich.objects
 from dulwich.repo import Repo
 from dulwich.client import HttpGitClient
 
@@ -331,24 +332,35 @@ class GitStorage(BaseStorage):
         }
 
     def files(self):
+        repo = Repo(
+            zope.component.getUtility(IPMR2GlobalSettings).dirOf(self.context))
+
         def _files(tree, current_path=None):
             results = []
-            for node in tree:
+            for node in tree.items():
                 if current_path:
-                    name = '/'.join([current_path, node.name])
+                    name = '/'.join([current_path, node.path])
                 else:
-                    name = node.name
+                    name = node.path
 
-                obj = self.repo.get(node.oid)
-                if isinstance(obj, Blob):
+                try:
+                    obj = repo.get_object(node.sha)
+                except KeyError:
+                    # assume this is a submodule type
+                    continue
+
+                if isinstance(obj, dulwich.objects.Blob):
                     results.append(name)
-                elif isinstance(obj, Tree):
+                elif isinstance(obj, dulwich.objects.Tree):
                     results.extend(_files(obj, name))
             return results
 
         if not self._commit:
             return []
-        results = _files(self._commit.tree)
+        commit = repo.get_object(self._commit.hex)
+        tree = repo.get_object(commit.tree)
+        results = _files(tree)
+
         return results
 
     def roots(self, rev=None):

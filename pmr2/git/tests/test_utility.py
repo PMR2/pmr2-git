@@ -384,6 +384,13 @@ class StorageTestCase(TestCase):
                           self.nested_name + 'asdf')
         self.assertRaises(PathNotFoundError, storage.listdir, 'nested/not')
 
+    def test_511_listdir_external(self):
+        storage = GitStorage(self.repodata)
+        storage.checkout(util.ARCHIVE_REVS[7])
+        result = [e['basename'] for e in storage.listdir('ext')]
+        answer = ['..', 'import1', 'import2', 'README']
+        self.assertEqual(answer, result)
+
     def test_600_pathinfo_magic(self):
         storage = GitStorage(self.workspace)
         storage.checkout(self.revs[0])
@@ -797,13 +804,10 @@ class UtilityTestCase(TestCase):
         result = utility.sync(workspace, target)
         create_test = utility(workspace)
         filelist = create_test.files()
-        self.assertTrue('1/f1' in filelist)
-        self.assertTrue('1/f2' in filelist)
-        self.assertTrue('1/2/2f2' in filelist)
-        self.assertTrue('README' in filelist)
-        self.assertTrue('ext/README' in filelist)
-        self.assertTrue('file1' in filelist)
-        self.assertTrue('file2' in filelist)
+        self.assertEqual(sorted(filelist), [
+            '.gitmodules', '1/2/2f2', '1/f1', '1/f2', 'README', 'ext/README',
+            'file1', 'file2'
+        ])
 
 
 def test_suite():

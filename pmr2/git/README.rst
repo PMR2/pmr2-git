@@ -49,8 +49,8 @@ a usable a GitStorage instance::
     >>> foobarbaz.title
     u'Foo Bar Baz'
     >>> storage = zope.component.getAdapter(foobarbaz, IStorage)
-    >>> '.git' in storage.repo.path
-    True
+    >>> storage.repo.path
+    '...workspace/foobarbaz...'
 
 Initial page should render::
 
