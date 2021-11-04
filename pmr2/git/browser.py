@@ -26,6 +26,16 @@ from pmr2.app.workspace.event import Push
 from pmr2.git.utility import GitStorage
 
 push_patt = re.compile('/git-receive-pack$')
+push_warning = """
+Please push a branch named either "master" or "main", otherwise the
+workspace may appear to be missing your files.
+
+To correct, please first checkout your desired branch to push and
+rename it to `main` before pushing it by running:
+
+    git branch -m main
+
+"""
 
 
 class ZopeHTTPGitRequest(HTTPGitRequest):
@@ -133,6 +143,9 @@ class GitProtocol(TraversePage):
         if self.request.method == 'POST' and spath is push_patt:
             alsoProvides(self.request, IDisableCSRFProtection)
             notify(Push(self.context))
+            self.is_push = True
+        else:
+            self.is_push = False
 
         self.handler = handler(req, backend, match)
         self.gitreq = req
@@ -153,6 +166,21 @@ class GitProtocol(TraversePage):
         for header in self.gitreq._headers:
             self.request.response.setHeader(*header)
         result = self.gitreq.out.getvalue()
+
+        if self.is_push:
+            try:
+                self.storage.repo.revparse_single('HEAD')
+            except KeyError:
+                # attempt to set reference to main instead
+                try:
+                    self.storage.repo.revparse_single('main')
+                except KeyError:
+                    # trigger warning
+                    result = '%04X\x02%s%s' % (
+                        len(push_warning) + 5, push_warning, result)
+                else:
+                    self.storage.repo.head = 'refs/heads/main'
+
         return result
 
     def __call__(self):
