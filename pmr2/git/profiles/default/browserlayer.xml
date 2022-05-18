@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<layers>
+  <layer name="pmr2.git" interface="pmr2.git.interfaces.IAppLayer" />
+</layers>

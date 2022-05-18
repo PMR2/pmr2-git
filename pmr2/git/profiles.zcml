@@ -1,0 +1,15 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
+    i18n_domain="pmr2.mercurial">
+
+  <genericsetup:registerProfile
+      name="default"
+      title="PMR2 Git Backend"
+      directory="profiles/default"
+      description="PMR2 Git Backend"
+      provides="Products.GenericSetup.interfaces.EXTENSION"
+      for="Products.CMFPlone.interfaces.IPloneSiteRoot"
+      />
+
+</configure>

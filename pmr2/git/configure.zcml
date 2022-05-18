@@ -5,11 +5,18 @@
 
   <include file="browser.zcml" />
   <include file="utility.zcml" />
+  <include file="profiles.zcml" />
 
   <utility
       name="git"
       component=".protocol.git"
       provides="pmr2.app.workspace.pas.interfaces.IStorageProtocol"
+      />
+
+  <browser:resourceDirectory
+      name="pmr2.git.resource"
+      directory="resource"
+      layer=".interfaces.IAppLayer"
       />
 
 </configure>
