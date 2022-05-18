@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.7.0 - 2022-05-18
+------------------
+
+* Ensure when trying to access subpaths of a blob raise the correct
+  exception
+* Provide a git icon for submodules.
+
 0.6.0 - 2021-11-04
 ------------------
 
