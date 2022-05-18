@@ -417,7 +417,7 @@ class StorageTestCase(TestCase):
         # guess_type does not return anything for that.
         self.assertTrue(result['mimetype']().startswith('text/plain'))
 
-    def test_600_pathinfo_magic(self):
+    def test_601_pathinfo_magic(self):
         self.maxDiff = 1022
         storage = GitStorage(self.workspace)
         storage.checkout(self.revs[2])
@@ -444,7 +444,14 @@ class StorageTestCase(TestCase):
         # checked first.
         self.assertEqual(result['mimetype'](), 'image/png')
 
-    def test_601_pathinfo_nested_dir(self):
+    def test_602_pathinfo_error(self):
+        self.maxDiff = 1022
+        storage = GitStorage(self.workspace)
+        storage.checkout(self.revs[0])
+        with self.assertRaises(PathNotFoundError):
+            storage.pathinfo('file1/file2')
+
+    def test_611_pathinfo_nested_dir(self):
         storage = GitStorage(self.workspace)
         storage.checkout(self.revs[3])
         result = storage.pathinfo('nested/deep/dir')
@@ -466,7 +473,7 @@ class StorageTestCase(TestCase):
         }
         self.assertEqual(answer, result)
 
-    def test_602_pathinfo_nested_dir(self):
+    def test_612_pathinfo_nested_dir(self):
         storage = GitStorage(self.workspace)
         storage.checkout(self.revs[3])
         result = storage.pathinfo(self.nested_name)

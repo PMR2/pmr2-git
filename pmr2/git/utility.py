@@ -271,6 +271,10 @@ class GitStorage(BaseStorage):
                 if not fragment == '':
                     # no empty string entries, also skips over '//' and
                     # leaves the final node (if directory) as the tree.
+                    if isinstance(node, Blob):
+                        raise PathNotFoundError(
+                            'cannot traverse into blob at `%s`' % (
+                                '/'.join(breadcrumbs)))
                     oid = node[fragment].oid
                     node = self.repo.get(oid)
                 breadcrumbs.append(fragment)
@@ -292,20 +296,22 @@ class GitStorage(BaseStorage):
                                 'path': '/'.join(fragments),
                                 'rev': oid.hex,
                             }
-                    raise PathNotDirError('path not dir')
+                    raise PathNotDirError(
+                        'path `%s` failed to resolve as a dir' % (
+                            '/'.join(breadcrumbs)))
 
             if cls is None or isinstance(node, cls):
                 return node
         except KeyError:
               # can't find what is needed in repo, raised by pygit2
-            raise PathNotFoundError('path not found')
+            raise PathNotFoundError('path `%s` not found' % path)
 
         # not what we were looking for.
         if cls == Tree:
-            raise PathNotDirError('path not dir')
+            raise PathNotDirError('path `%s` is not dir' % path)
         # default
         # if cls == Blob:
-        raise PathNotFoundError('path not found')
+        raise PathNotFoundError('path `%s` not found' % path)
 
     def file(self, path):
         return self._get_obj(path, Blob).data
