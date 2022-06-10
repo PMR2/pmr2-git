@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import os
 
-version = '0.7'
+version = '0.7.1'
 
 setup(name='pmr2.git',
       version=version,
