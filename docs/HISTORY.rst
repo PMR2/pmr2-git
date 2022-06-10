@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.7.1 - 2022-06-10
+------------------
+
+* Ensure empty repos will produce no roots rather than error out.
+
 0.7.0 - 2022-05-18
 ------------------
 

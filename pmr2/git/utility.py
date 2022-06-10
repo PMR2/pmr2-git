@@ -378,6 +378,8 @@ class GitStorage(BaseStorage):
             commit = self.repo.revparse_single(rev)
         else:
             commit = self._commit
+        if commit is None:
+            return []
         walker = self.repo.walk(commit.oid, 0)
         return [c.oid.hex for c in walker if not c.parents]
 

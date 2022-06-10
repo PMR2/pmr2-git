@@ -186,6 +186,7 @@ class StorageTestCase(TestCase):
         workspace = DummyWorkspace(empty)
         storage = GitStorage(workspace)
         self.assertEqual(storage.files(), [])
+        self.assertEqual(storage.roots(), [])
 
         pathinfo = storage.pathinfo('')
         result = list(pathinfo['contents']())
@@ -193,6 +194,7 @@ class StorageTestCase(TestCase):
 
         self.assertEqual(storage.shortrev, None)
         self.assertEqual(storage.rev, None)
+        self.assertEqual(storage.roots(), [])
 
     def test_012_storage_checkout_bad(self):
         empty = join(self.testdir, 'empty')
