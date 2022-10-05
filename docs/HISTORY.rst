@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.7.2 - 20??-??-??
+------------------
+
+* Test for the integration of the ``storage.resolve_file`` method.
+
 0.7.1 - 2022-06-10
 ------------------
 

@@ -139,7 +139,7 @@ Now test the listing of the container that contains import links::
     >>> 'import2' in result
     True
 
-Accessing the import links using the file page will trigger a 
+Accessing the import links using the file page will trigger a
 redirection::
 
     >>> subpath = [self.repodata_revs[7], 'ext', 'import1']
@@ -232,3 +232,32 @@ The list of files between both of them should be equal::
     >>> cloned_storage = zope.component.getAdapter(cloned, IStorage)
     >>> cloned_storage.files() == simple1_storage.files()
     True
+
+Git Storage and embedded workspaces
+-----------------------------------
+
+With the introduction of the ``resolve_file`` method, should the
+required methods be implemented correctly, this helper method will
+directly resolve the paths across subrepos::
+
+    >>> from pmr2.git.tests import util
+    >>> repodata = self.portal.workspace.repodata
+    >>> repodata_storage = zope.component.getAdapter(repodata, IStorage)
+    >>> repodata_storage.checkout(util.ARCHIVE_REVS[4])
+    >>> result = repodata_storage.resolve_file('ext/import1/if1')
+    Traceback (most recent call last):
+    ...
+    SubrepoPathUnsupportedError: requested path at 'ext/import1/if1' requires
+    subrepo at unsupported netloc 'models.example.com' when trying to resolve
+    subpath 'if1'
+
+Well, it looks like models.example.com needs to be registered with the
+relevant registry first and try again::
+
+    >>> from plone.registry.interfaces import IRegistry
+    >>> registry = zope.component.getUtility(IRegistry)
+    >>> registry['pmr2.app.settings.prefix_maps'] = {
+    ...     u'models.example.com': u'/plone'}
+    >>> result = repodata_storage.resolve_file('ext/import1/if1')
+    >>> print(result)
+    if1

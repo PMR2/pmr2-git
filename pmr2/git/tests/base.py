@@ -54,6 +54,10 @@ class GitDocTestCase(ExposureDocTestCase):
         p = self.pmr2.createDir(self.portal.workspace)
         util.extract_archive(p)
 
+        self.portal.w = WorkspaceContainer('w')
+        # yes there are duplicates but the extra copies shouldn't matter
+        util.extract_archive(self.pmr2.createDir(self.portal.w))
+
         p2a_test = join(dirname(pmr2.testing.__file__), 'pmr2.app.testdata.tgz')
         util.extract_archive(p, p2a_test)
 
@@ -64,7 +68,7 @@ class GitDocTestCase(ExposureDocTestCase):
             '006f11cd9211abd2a879df0f6c7f27b9844a8ff2',
         ]
 
-        def mkgit_workspace(name):
+        def mkgit_workspace(name, target=self.portal.workspace):
             # XXX temporary method to work with existing tests until
             # this is replaced
             w = Workspace(name)
@@ -72,10 +76,10 @@ class GitDocTestCase(ExposureDocTestCase):
             w.title = u''
             w.description = u''
             zope.interface.alsoProvides(w, IGitWorkspace)
-            self.portal.workspace[name] = w
+            target[name] = w
 
-        mkgit_workspace('import1')
-        mkgit_workspace('import2')
+        mkgit_workspace('import1', self.portal.w)
+        mkgit_workspace('import2', self.portal.w)
         mkgit_workspace('repodata')
         mkgit_workspace('rdfmodel')
         mkgit_workspace('simple1')
