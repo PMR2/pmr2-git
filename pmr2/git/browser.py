@@ -11,7 +11,7 @@ from plone.protect.interfaces import IDisableCSRFProtection
 from zope.interface import alsoProvides
 from zope.event import notify
 
-from dulwich.server import Backend, DEFAULT_HANDLERS
+from dulwich.server import Backend, ReceivePackHandler, DEFAULT_HANDLERS
 from dulwich.repo import Repo
 from dulwich.web import get_text_file, get_info_refs, get_loose_object
 from dulwich.web import get_pack_file, get_idx_file, handle_service_request
@@ -36,6 +36,22 @@ rename it to `main` before pushing it by running:
     git branch -m main
 
 """
+
+
+class PatchedReceivePackHandler(ReceivePackHandler):
+    """
+    Patched handler that will strip out the agent capability to prevent
+    the capability check from raising an exception.
+    """
+
+    def set_client_capabilities(self, caps):
+        caps = [cap for cap in caps if not cap.startswith('agent=')]
+        super(PatchedReceivePackHandler, self).set_client_capabilities(caps)
+
+
+PATCHED_HANDLERS = {}
+PATCHED_HANDLERS.update(DEFAULT_HANDLERS)
+PATCHED_HANDLERS['git-receive-pack'] = PatchedReceivePackHandler
 
 
 class ZopeHTTPGitRequest(HTTPGitRequest):
@@ -127,7 +143,7 @@ class GitProtocol(TraversePage):
         }
 
         req = ZopeHTTPGitRequest(self.env, None, dumb=False,
-            handlers=dict(DEFAULT_HANDLERS))
+            handlers=PATCHED_HANDLERS)
 
         for smethod, spath in self.services.iterkeys():
             if smethod != self.request.method:

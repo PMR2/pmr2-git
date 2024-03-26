@@ -1,10 +1,12 @@
 Changelog
 =========
 
-0.7.2 - 20??-??-??
+0.7.2 - 2024-03-36
 ------------------
 
 * Test for the integration of the ``storage.resolve_file`` method.
+* Patch the receive pack handler to stop exception from being raised
+  when clients provide the agent string as a capability.
 
 0.7.1 - 2022-06-10
 ------------------
